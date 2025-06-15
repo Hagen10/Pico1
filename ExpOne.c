@@ -22,8 +22,6 @@ void button_pressed(uint gpio, uint32_t event_mask) {
 
 int main()
 {
-    // Starts at 
-    volatile bool led_status = 0;
     // Initialize the LED and button
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
