@@ -16,7 +16,10 @@ int main()
     adc_select_input(0);
 
     // Might need to configure it depending on how much light comes in to the room
-    uint16_t lightLevelSwitchAt = 500;
+    uint16_t lightLevelSwitchAt;
+
+    // Making the light level be dependent on the current adc_read
+    lightLevelSwitchAt = adc_read() * 0.8;
 
     // Could this be achieved with an interrupt instead?
 
@@ -28,6 +31,6 @@ int main()
         if (result < lightLevelSwitchAt) gpio_put(PICO_DEFAULT_LED_PIN, 0);
         else gpio_put(PICO_DEFAULT_LED_PIN, 1);
         sleep_ms(1000);
-        printf("Getting the following result: %d\n\n", result);
+        printf("Getting the following result: %d - lightLevelSwitchAt: %d\n\n", result, lightLevelSwitchAt);
     }
 }

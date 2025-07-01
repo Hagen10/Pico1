@@ -3,7 +3,7 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 
 ## ExpTwo Ideas
 - Make a button that resets the cut off value to the current adc_read.
-- initialize the microcontroller by measuring say 10 different values and save the lowest value and the range that they are in. The cut off could then be the lowest value minus an additional figure just to allow some additional fluctuation without turning it off.
+- DONE initialize the microcontroller by measuring say 10 different values and save the lowest value and the range that they are in. The cut off could then be the lowest value minus an additional figure just to allow some additional fluctuation without turning it off.
 
 ## Debugging
 
