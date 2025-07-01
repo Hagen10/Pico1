@@ -16,14 +16,18 @@ int main()
     adc_select_input(0);
 
     // Might need to configure it depending on how much light comes in to the room
-    uint16_t lightLevelSwitchAt = 50;
+    uint16_t lightLevelSwitchAt = 500;
 
     // Could this be achieved with an interrupt instead?
 
+    // Needed for getting logs from `printf` via USB 
+    stdio_init_all();
+
     while (true) {
         uint16_t result = adc_read();
-        if (result > lightLevelSwitchAt) gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        if (result < lightLevelSwitchAt) gpio_put(PICO_DEFAULT_LED_PIN, 0);
         else gpio_put(PICO_DEFAULT_LED_PIN, 1);
         sleep_ms(1000);
+        printf("Getting the following result: %d\n\n", result);
     }
 }
