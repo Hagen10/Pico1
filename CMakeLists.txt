@@ -67,6 +67,7 @@ target_link_libraries(FirstPico
         hardware_watchdog
         hardware_clocks
         hardware_adc
+        hardware_pwm
         )
 
 pico_add_extra_outputs(FirstPico)

@@ -5,6 +5,9 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 - Make a button that resets the cut off value to the current adc_read.
 - DONE initialize the microcontroller by measuring say 10 different values and save the lowest value and the range that they are in. The cut off could then be the lowest value minus an additional figure just to allow some additional fluctuation without turning it off.
 
+## ExpThree
+- DONE Figure out why the switch button doesn't always work. Are we doing something wrong here? It seems as if one switch press can trigger many interrupts. Maybe the buttons don't work properly?
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
