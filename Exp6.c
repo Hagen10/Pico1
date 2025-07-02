@@ -16,7 +16,6 @@ volatile uint16_t prev_frequency = 0;
 #define FREQUENCY_DIFFERENT(val) ((val) < (prev_frequency - 50) || (val) > (prev_frequency + 50))
 
 uint16_t scale(uint16_t value) {
-    // return value * 2;
     return TO_MIN + (((value - FROM_MIN) * (TO_MAX - TO_MIN)) / (FROM_MAX - FROM_MIN));
 }
 
@@ -29,12 +28,6 @@ int main()
     uint slice_num = pwm_gpio_to_slice_num(BUZZER);
     pwm_set_enabled(slice_num, true);
 
-    // // Set the PWM frequency to 50 Hz
-    // pwm_set_wrap(slice_num, 24999); // TOP value
-
-    // // Set the clock divider to get 50 Hz
-    // pwm_set_clkdiv(slice_num, 100.0f);
-
     adc_init();
     adc_gpio_init(POTENTIOMETER);
     adc_select_input(0);
@@ -42,12 +35,8 @@ int main()
     // Needed for getting logs from `printf` via USB 
     stdio_init_all();
 
-    // sleep_ms(5000);
-
+    // Setting a 50% duty cycle (half of 65535)
     pwm_set_gpio_level(BUZZER, 32767);
-
-    printf("SPINNING UP\n\n");
-    // sleep_ms(5000);
 
     while (true) {
         uint16_t pot_result = adc_read();
@@ -57,28 +46,9 @@ int main()
         if ((FREQUENCY_DIFFERENT(scaledValue))) {
             printf("POT_VALUE: %d -- scaledValue: %d\n", pot_result, scaledValue);
 
-            // pwm_set_gpio_level(BUZZER, scaledValue);
             pwm_set_wrap(slice_num, scaledValue);
             prev_frequency = scaledValue;
         }
         sleep_ms(50);
-
-        // printf("SPINNING UP\n\n");
-        // sleep_ms(5000);
-        // for (int i = 30000; i < 65000; i += 100) {
-        //     pwm_set_wrap(slice_num, i);
-        //     printf("SPINNING UP - - - %i\n\n", i);
-        //     sleep_ms(250);
-        // }
-
-        // sleep_ms(2500);
-        // printf("SPINNING DOWN\n\n");
-
-        // for (int i = 65535; i > 0; i -= 100) {
-        //     pwm_set_gpio_level(MOTOR_CONTROL, i);
-        //     sleep_ms(5);
-        // }
-
-        // sleep_ms(2500);
     }
 }
