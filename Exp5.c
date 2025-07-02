@@ -12,7 +12,6 @@
 #define TO_MAX 3200
 
 uint16_t scale(uint16_t value) {
-    // return value * 2;
     return TO_MIN + (((value - FROM_MIN) * (TO_MAX - TO_MIN)) / (FROM_MAX - FROM_MIN));
 }
 
@@ -24,7 +23,6 @@ int main()
     // Additional PWM CONFIGURATION
     uint slice_num = pwm_gpio_to_slice_num(SERVO_MOTOR);
     pwm_set_enabled(slice_num, true);
-
 
     // Set the PWM frequency to 50 Hz
     pwm_set_wrap(slice_num, 24999); // TOP value
@@ -39,7 +37,6 @@ int main()
     // Needed for getting logs from `printf` via USB 
     stdio_init_all();
 
-
     printf("SPINNING UP\n\n");
     sleep_ms(5000);
 
@@ -51,23 +48,5 @@ int main()
 
         pwm_set_gpio_level(SERVO_MOTOR, scaledValue);
         sleep_ms(50);
-
-        // printf("SPINNING UP\n\n");
-        // sleep_ms(5000);
-        // for (int i = 0; i < 8192; i += 100) {
-        //     pwm_set_gpio_level(SERVO_MOTOR, i);
-        //     printf("SPINNING UP - - - %i\n\n", i);
-        //     sleep_ms(1000);
-        // }
-
-        // sleep_ms(2500);
-        // printf("SPINNING DOWN\n\n");
-
-        // for (int i = 65535; i > 0; i -= 100) {
-        //     pwm_set_gpio_level(MOTOR_CONTROL, i);
-        //     sleep_ms(5);
-        // }
-
-        // sleep_ms(2500);
     }
 }

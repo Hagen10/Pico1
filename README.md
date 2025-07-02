@@ -8,6 +8,11 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 ## ExpThree
 - DONE Figure out why the switch button doesn't always work. Are we doing something wrong here? It seems as if one switch press can trigger many interrupts. Maybe the buttons don't work properly?
 
+## ExpFive
+- DONE Experiment more with the gpio_level range. It seems like the servo only operates in the range 500 to around 3200, not 1638 to 8192 as the booklet says.
+- It seems as if it requires a long sleep before updating the gpio_level otherwise it won't turn.
+- The highest values (3000-3200) seems to cause it to shake, not sure why?
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
