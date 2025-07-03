@@ -14,6 +14,10 @@
 
 uint8_t pins[] = {SEGA, SEGB, SEGC, SEGD, SEGE, SEGF, SEGG};
 
+// Last element will be ignored in spinningLight so I just added SEGG even though
+// it's redundant.
+uint8_t altPins[] = {SEGA, SEGB, SEGG, SEGE, SEGD, SEGC, SEGG, SEGF, SEGG};
+
 uint8_t digits[11][7] = {
     {1,1,1,1,1,1,0},
     {0,1,1,0,0,0,0},
@@ -32,8 +36,37 @@ void displayNumber(uint8_t number) {
     uint8_t pin = 0;
     for (int segment = 0; segment < sizeof(pins); segment++) {
         gpio_put(pins[pin], digits[number][segment]);
+        sleep_ms(50);
         pin++;
     }
+}
+
+void loadingSymbol(void) {
+    for (int pin = 0; pin < sizeof(pins) - 1; pin++) {
+        gpio_put(pins[pin], 1);
+        sleep_ms(100);
+    }
+
+    for (int pin = 0; pin < sizeof(pins) - 1; pin++) {
+        gpio_put(pins[pin], 0);
+        sleep_ms(100);
+    }
+}
+
+// Shows the light spinning around the edges as if it's loading something
+void spinningLight(uint8_t arr[], uint8_t arrSize) {
+    uint8_t lastSegment = 0;
+
+    for (int pin = 0; pin < arrSize - 1; pin++) {
+        gpio_put(arr[pin], 1);
+        // Turning off the light for the previous element
+        lastSegment = pin - 1 >= 0 ? arr[pin - 1] : arr[arrSize - 2];
+        gpio_put(lastSegment, 0);
+        sleep_ms(50);
+    }
+
+    // Setting the last turned on element back to 0
+    gpio_put(lastSegment + 1, 0);
 }
 
 int main()
@@ -57,5 +90,14 @@ int main()
             displayNumber(i);
             sleep_ms(500);
         }
+
+        // More and more segments light up in this method
+        for (int i = 0; i < 5; i++) loadingSymbol();
+
+        //Only one segment lights up at a time
+        for (int i = 0; i < 10; i++) spinningLight(pins, sizeof(pins));
+        // Different style
+        for (int i = 0; i < 10; i++) spinningLight(altPins, sizeof(altPins));
+
     }
 }
