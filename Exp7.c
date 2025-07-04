@@ -14,9 +14,10 @@
 
 uint8_t pins[] = {SEGA, SEGB, SEGC, SEGD, SEGE, SEGF, SEGG};
 
-// Last element will be ignored in spinningLight so I just added SEGG even though
-// it's redundant.
-uint8_t altPins[] = {SEGA, SEGB, SEGG, SEGE, SEGD, SEGC, SEGG, SEGF, SEGG};
+uint8_t altPins[] = {SEGA, SEGB, SEGG, SEGE, SEGD, SEGC, SEGG, SEGF};
+
+uint8_t altPins2[] = {SEGF, SEGE, SEGA, SEGG, SEGD, SEGB, SEGC};
+
 
 uint8_t digits[11][7] = {
     {1,1,1,1,1,1,0},
@@ -53,14 +54,14 @@ void loadingSymbol(void) {
     }
 }
 
-// Shows the light spinning around the edges as if it's loading something
+// Lights up one segment at a time when looping through the passed array
 void spinningLight(uint8_t arr[], uint8_t arrSize) {
     uint8_t lastSegment = 0;
 
-    for (int pin = 0; pin < arrSize - 1; pin++) {
+    for (int pin = 0; pin < arrSize; pin++) {
         gpio_put(arr[pin], 1);
         // Turning off the light for the previous element
-        lastSegment = pin - 1 >= 0 ? arr[pin - 1] : arr[arrSize - 2];
+        lastSegment = pin - 1 >= 0 ? arr[pin - 1] : arr[arrSize - 1];
         gpio_put(lastSegment, 0);
         sleep_ms(50);
     }
@@ -94,10 +95,12 @@ int main()
         // More and more segments light up in this method
         for (int i = 0; i < 5; i++) loadingSymbol();
 
-        //Only one segment lights up at a time
-        for (int i = 0; i < 10; i++) spinningLight(pins, sizeof(pins));
+        //Only one segment lights up at a time. We're passing the size of pins - 1 
+        // because we don't want the middle segment (SEGG) to light up for the pins array.
+        for (int i = 0; i < 10; i++) spinningLight(pins, sizeof(pins) - 1);
         // Different style
         for (int i = 0; i < 10; i++) spinningLight(altPins, sizeof(altPins));
-
+        // Another different style
+        for (int i = 0; i < 10; i++) spinningLight(altPins2, sizeof(altPins2));
     }
 }
