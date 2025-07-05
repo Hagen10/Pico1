@@ -13,6 +13,9 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 - It seems as if it requires a long sleep before updating the gpio_level otherwise it won't turn.
 - The highest values (3000-3200) seems to cause it to shake, not sure why?
 
+## ExpEight
+- Occasionally, I can get the adc read to increase when I blow on the fan, but other times the adc read doesn't change at all based on the movement of the motor. I'm not sure what the problem is here. But I proved that it worked sometimes.
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
