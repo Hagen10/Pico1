@@ -16,6 +16,9 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 ## ExpEight
 - Occasionally, I can get the adc read to increase when I blow on the fan, but other times the adc read doesn't change at all based on the movement of the motor. I'm not sure what the problem is here. But I proved that it worked sometimes.
 
+## ExpNine
+- Like with many other experiments, the booklet claims the range is 0-65535 (16 bit) but the range ends up being 0-4096 only. Not sure why that is the case.
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
