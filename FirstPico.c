@@ -84,13 +84,135 @@ int main()
             bState = false;
         }
 
-        for (int i = 0; i < numLeds; i++) {
-            colors[i] = (g << 16) | (r << 8) | b;
-            uint32_t color = colors[i] << 8; // align to top 24 bits (since rgb only has 24 bits (8 bits for each of the three colors))
-            // This is what sets the color
-            pio_sm_put_blocking(pio, sm, color);
-        }
+        // for (int i = 0; i < numLeds; i++) {
+        //     colors[i] = (g << 16) | (r << 8) | b;
+        //     uint32_t color = colors[i] << 8; // align to top 24 bits (since rgb only has 24 bits (8 bits for each of the three colors))
+        //     // This is what sets the color
+        //     pio_sm_put_blocking(pio, sm, color);
+        // }
+
+        // Some additional color fun
 
         sleep_ms(50);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 24) | (50 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 16) | (0 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 16) | (0 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 16) | (0 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 16) | (0 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 16) | (0 << 8));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+
+        sleep_ms(1000);
+
+        pio_sm_put_blocking(pio, sm, (0 << 24));
+        pio_sm_put_blocking(pio, sm, (0 << 16));
+        pio_sm_put_blocking(pio, sm, (0 << 8));
+        pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
+        pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
+
+        sleep_ms(1000);
     }
 }

@@ -22,6 +22,7 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 ## ExpTen
 - Check and see if having the same interrupt for each of the buttons is a bad idea! NOT A PROBLEM
 - The fix was to remove "opts pindirs" from the .side_set 1 and possibly also adding a longer sleep instead of just 80 µs. Now it's 50 ms
+- What if I want to set different colours for the differen LEDs?
 
 ## Debugging
 
