@@ -20,7 +20,8 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 - Like with many other experiments, the booklet claims the range is 0-65535 (16 bit) but the range ends up being 0-4096 only. Not sure why that is the case.
 
 ## ExpTen
-- Check and see if having the same interrupt for each of the buttons is a bad idea!
+- Check and see if having the same interrupt for each of the buttons is a bad idea! NOT A PROBLEM
+- The fix was to remove "opts pindirs" from the .side_set 1 and possibly also adding a longer sleep instead of just 80 µs. Now it's 50 ms
 
 ## Debugging
 
