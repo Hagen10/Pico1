@@ -61,9 +61,11 @@ int main()
     uint sm = pio_claim_unused_sm(pio, true);
 
     uint offset = pio_add_program(pio, &zipled_program);
-
-    // pio_add_program_at_offset(pio, &ws2812_program, PIO_WS2812_INST_HEAD);
+    // uint offset = pio_add_program(pio, &ws2812_program);
+    
     zipled_program_init(pio, sm, offset, (uint)ZIPLED);
+    // ws2812_program_init(pio, sm, offset, (uint)ZIPLED, 800000, 24);
+
     // pio_sm_config c = zipled_program_get_default_config(offset);
 
     // sm_config_set_sideset_pins(&c, ZIPLED);
@@ -83,13 +85,36 @@ int main()
 
     uint32_t colors[numLeds];
 
+    // uint32_t color = (uint32_t)(255) << 16 | (uint32_t)(255) << 8 | (uint32_t)(255);
+
+    // uint32_t result = 0;
+
+    // result |= (color & 0xFF);
+    // result |= (color & 0xFF00) >> 8;
+    // result |= (color & 0xFF0000) >> 16;
+
+    // result <<= 8;
+
+
     while (true) {
+        // for (int i = 0; i < numLeds; i++) {
+        //     colors[i] = result;
+        // }
+
+        // for (uint i = 0; i < numLeds; i++) {
+        //     pio_sm_put_blocking(pio, sm, colors[i]);
+        // }
+
+        // sleep_ms(1000);
+
+        printf("DONE - %d\n", colors[0]);
+
         if (rState) {
             if (r >= 255) r = 0;
             else r += 5;
             rState = false;
             // printf("R IS NOW: %d\n", r);
-            sleep_ms(100);
+            // sleep_ms(100);
         }
 
         if (gState) {
@@ -97,7 +122,7 @@ int main()
             else g += 5;
             gState = false;
             // printf("G IS NOW: %d\n", g);
-            sleep_ms(100);
+            // sleep_ms(100);
         }
 
         if (bState) {
@@ -105,12 +130,12 @@ int main()
             else b += 5;
             bState = false;
             // printf("B IS NOW: %d\n", b);
-            sleep_ms(100);
+            // sleep_ms(100);
         }
 
-        uint elems = pio_sm_get_tx_fifo_level(pio, sm);
+        // uint elems = pio_sm_get_tx_fifo_level(pio, sm);
 
-        printf("FIFO QUEUE 1: %d\n", elems);
+        // printf("FIFO QUEUE 1: %d\n", elems);
 
         // pio_sm_put_blocking(pio, sm, 0xFF000000);
 
@@ -119,32 +144,32 @@ int main()
             uint32_t color = colors[i] << 8; // align to top 24 bits
             // uint32_t color = colors[i];
             // if (i == 0) printf("COLOR %d IS: %d\n", i, color);
-            // pio_sm_put_blocking(pio, sm, color);
+            pio_sm_put_blocking(pio, sm, color);
             // pio->txf[sm] = color << 8u;
             // pio_sm_put(pio, sm, color);
         }
 
-        elems = pio_sm_get_tx_fifo_level(pio, sm);
+        // elems = pio_sm_get_tx_fifo_level(pio, sm);
 
-        printf("FIFO QUEUE 2: %d\n", elems);
+        // printf("FIFO QUEUE 2: %d\n", elems);
 
-        printf("FIFO FULL?: %d\n", pio_sm_is_tx_fifo_full(pio, sm));
-        printf("FIFO EMPTY?: %d\n", pio_sm_is_tx_fifo_empty(pio, sm));
+        // printf("FIFO FULL?: %d\n", pio_sm_is_tx_fifo_full(pio, sm));
+        // printf("FIFO EMPTY?: %d\n", pio_sm_is_tx_fifo_empty(pio, sm));
 
 
 
-        // Ensure the FIFO has room before blasting
-        // for (int i = 0; i < numLeds; i++) {
-        //     while (pio_sm_is_tx_fifo_full(pio, sm));
-        //     pio->txf[sm] = colors[i];
-        //     // pio->txf[sm] = 0x00FF00;
-        // }
+        // // Ensure the FIFO has room before blasting
+        // // for (int i = 0; i < numLeds; i++) {
+        // //     while (pio_sm_is_tx_fifo_full(pio, sm));
+        // //     pio->txf[sm] = colors[i];
+        // //     // pio->txf[sm] = 0x00FF00;
+        // // }
 
-        uint32_t test_color = (0x10 << 16) | (0x00 << 8) | 0x00;
-        pio_sm_put_blocking(pio, sm, test_color);
+        // uint32_t test_color = (0x10 << 16) | (0x00 << 8) | 0x00;
+        // pio_sm_put_blocking(pio, sm, test_color);
 
-        sleep_us(80);
+        // sleep_us(80);
 
-        // sleep_ms(1000);
+        sleep_ms(50);
     }
 }
