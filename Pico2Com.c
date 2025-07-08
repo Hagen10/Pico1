@@ -20,8 +20,6 @@ int numLeds = 5;
 static int contains(const char *text, const char *words) {
     if (strlen(words) > strlen(text)) return false;
 
-    printf("TEXT ARE %d and WORDS are %d", strlen(text), strlen(words));
-
     int j = 0;
 
     for (int i = 0; i < strlen(text); i++) {
@@ -68,11 +66,7 @@ int main()
     }
     watchdog_enable(4000, 1);
 
-    printf("AM I HERE 0\n");
-
-    while (true) {
-        printf("AM I HERE 1\n");
-    
+    while (true) {    
         watchdog_update();
 
         const char *msg = "START LIGHT\n";
@@ -114,7 +108,5 @@ int main()
         memset(uartBuffer, 0, sizeof(uartBuffer));
 
         watchdog_update();
-
-        printf("AM I HERE 2\n");
     }
 }

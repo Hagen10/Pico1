@@ -41,6 +41,8 @@
         ".fantomasignore": "ignore",
         "gpio.h": "c",
         "cstdlib": "c",
-        "algorithm": "c"
-    }
+        "algorithm": "c",
+        "helper.h": "c"
+    },
+    "FSharp.suggestGitignore": false
 }

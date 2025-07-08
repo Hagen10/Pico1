@@ -24,6 +24,14 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 - The fix was to remove "opts pindirs" from the .side_set 1 and possibly also adding a longer sleep instead of just 80 µs. Now it's 50 ms
 - What if I want to set different colours for the differen LEDs?
 
+## Communication between Picos using UART, I2C and SPI
+
+Files are called `Pico1ComLights.c` which is the one waiting for messaging and lights up the zip leds as a result. `Pico2Com.c` is for pico 2 which will only send out messages and wait for responses to ensure that everything was well-received.
+
+### UART
+
+## Watchdogs
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
@@ -36,3 +44,8 @@ Then in your main you need the following code:
 ```
 
 To get logs, open a terminal and type `ls /dev/tty.usb*` which should give you a device such as `/dev/tty.usbmodem11401`. Note, that the device does not show up when in BOOTSEL mode. You need to flash the program on the microcontroller first, and then you can get logs. Afterwards, run `screen /dev/tty.usbmodem11401 115200` to receive logs in the terminal. 
+
+### Using Pico 2
+
+When using Pico 2, CmakeLists.txt must be updated with board type set to pico2 in `set(PICO_BOARD pico2 CACHE STRING "Board type")`
+
