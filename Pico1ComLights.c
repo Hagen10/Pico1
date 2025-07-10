@@ -23,7 +23,9 @@ int numLeds = 5;
 #define I2C_SDA 2
 #define I2C_SCL 3
 
-char uartData[16] = {0};  // Adjust size as needed
+#define BUFFERSIZE 64
+char uartData[BUFFERSIZE] = {0};  // Adjust size as needed
+volatile int uartIndex = 0;
 PIO pio = pio0;
 uint sm;
 
@@ -54,45 +56,30 @@ bool reserved_addr(uint8_t addr) {
 }
 
 void on_uart_rx() {
-    printf("INTERRUPT TRIGGERED\n");
-    int i = 0;
+    // printf("INTERRUPT TRIGGERED\n");
+    // int i = 0;
     while (uart_is_readable(UART_ID)) {
         char c = uart_getc(UART_ID);
-        printf("UART received: %c\n", c);
+        // printf("UART received: %c\n", c);
         if (c == '\n' || c == '\r' || c == '\0') {
             break;
         }
 
-        uartData[i++] = c;
+        if (uartIndex < BUFFERSIZE - 1)
+            uartData[uartIndex++] = c;
+        else printf("UART BUFFER OVERFLOW!!");
     }
 
-    uartData[i] = '\0';  // Null-terminate string
+    uartData[uartIndex] = '\0';  // Null-terminate string
 
     // Check if input matches "15215"
     if (contains(uartData, "START LIGHT")) {
         uart_received = true;
-        printf("TURNING ON LIGHTS\n");
-        // BIT ORDER IS GREEN-RED-BLUE
-        // pio_sm_put_blocking(pio, sm, (0 << 24));
-        // pio_sm_put_blocking(pio, sm, (0 << 16));
-        // pio_sm_put_blocking(pio, sm, (0 << 8));
-        // pio_sm_put_blocking(pio, sm, (0 << 24) | (0 << 16));
-        // pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
 
+        uartIndex = 0;
+        memset(uartData, 0, sizeof(uartData));
 
-        // pio_sm_put(pio, sm, (0 << 24));
-        // pio_sm_put(pio, sm, (0 << 16));
-        // pio_sm_put(pio, sm, (0 << 8));
-        // pio_sm_put(pio, sm, (0 << 24) | (0 << 16));
-        // pio_sm_put(pio, sm, (50 << 16) | (50 << 8));
-
-        // sleep_ms(50);
-
-        const char *msg = "OK 1\n";
-        uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
     }
-
-    // memset(uartData, 0, sizeof(uartData));
 }
 
 //
@@ -125,11 +112,7 @@ int main()
     irq_set_enabled(UART1_IRQ, true);
     uart_set_irqs_enabled(UART_ID, true, false); // RX only
 
-    // Buffer for uart input
-    // char uartBuffer[20] = {0};  // Adjust size as needed
-
     char i2cBuffer[20] = {0};
-
 
     // I2C setup
     i2c_init(i2c_default, 100 * 1000);
@@ -158,29 +141,8 @@ int main()
     while (true) {    
         // watchdog_update();
 
-        // int i = 0;
-        // while (i < sizeof(uartBuffer) - 1) {
-        // // for (int i = 0; i < sizeof(uartBuffer); i++) {
-        //     char c;
-        //     uart_read_blocking(UART_ID, (uint8_t*) &c, 1);
-
-        //     printf("GOT: %c - %i\n", c, (int)c);
-
-        //     // Stripping string from new lines, null terminations
-        //     if (c == '\n' || c == '\r' || c == '\0') {
-        //         break;
-        //     }
-
-        //     uartBuffer[i++] = c;
-
-        //     if (i > 0) printf("ADDING TO uartBUFFER - %c\n", uartBuffer[i - 1]);
-        // }
-
-        // uartBuffer[i] = '\0';  // Null-terminate string
-
-        // printf("GOT SOMETHING: %s \n", uartBuffer);
-
         if (uart_received) {
+            printf("INTERRUPT MESSAGE RECEIVED");
             pio_sm_put_blocking(pio, sm, (0 << 24));
             pio_sm_put_blocking(pio, sm, (0 << 16));
             pio_sm_put_blocking(pio, sm, (0 << 8));
@@ -188,6 +150,11 @@ int main()
             pio_sm_put_blocking(pio, sm, (50 << 16) | (50 << 8));
 
             sleep_ms(50);
+
+            const char *msg = "OK\n";
+            uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
+
+            uart_received = false;
         }
 
         // // Check if input matches "15215"
@@ -368,6 +335,6 @@ int main()
         // sleep_ms(1000);
 
         printf("LOOPING\n");
-        sleep_ms(2000);
+        sleep_ms(1000);
     }
 }
