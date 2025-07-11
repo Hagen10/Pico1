@@ -52,3 +52,5 @@ When using Pico 2, CmakeLists.txt must be updated with board type set to pico2 i
 - maybe set up interrupts for all the different reads/writes across the SPI, UART and I2C?
 
 - Interrupts seem to work for UART now, but there is some timing issue. We need to maybe move more of the comms back to main(), so the interrupts only set flags for what needs to be done in main.
+
+- How should I toy around with SPI and I2C?
