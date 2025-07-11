@@ -10,8 +10,6 @@
 #include "hardware/i2c.h"
 #include "pico/binary_info.h"
 
-int numLeds = 5;
-
 #define UART_ID uart1
 #define BAUD_RATE 115200
 #define UART_TX_PIN 4
@@ -19,14 +17,16 @@ int numLeds = 5;
 
 #define ZIPLED 16
 
-#define I2C_RECEIVER 0x42
-#define I2C_SDA 2
-#define I2C_SCL 3
-
 #define BUFFERSIZE 64
 
-volatile bool sendUART = true;
-volatile bool sendI2C = false;
+typedef enum {
+    SEND_FIRST,
+    SEND_SECOND,
+    SEND_THIRD,
+    FINISHED
+} TASK_STATUS;
+
+volatile TASK_STATUS status = SEND_FIRST;
 
 char uartData[BUFFERSIZE] = {0};  // Adjust size as needed
 volatile int uartIndex = 0;
@@ -47,55 +47,42 @@ static int contains(const char *text, const char *words) {
     return false;
 } 
 
-// I2C reserves some addresses for special purposes. We exclude these from the scan.
-// These are any addresses of the form 000 0xxx or 111 1xxx
-bool reserved_addr(uint8_t addr) {
-    return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
-}
 
 // UART RX handler
 void on_uart_rx() {
-    // printf("INTERRUPT TRIGGERED\n");
-    // int i = 0;
     while (uart_is_readable(UART_ID)) {
         char c = uart_getc(UART_ID);
-        // printf("UART received: %c\n", c);
         if (c == '\n' || c == '\r' || c == '\0') {
             break;
         }
 
         if (uartIndex < BUFFERSIZE - 1)
             uartData[uartIndex++] = c;
-        else printf("UART BUFFER OVERFLOW!!");
+        else {
+            printf("UART BUFFER OVERFLOW!!");
+            uartIndex = 0;
+        }
     }
 
     uartData[uartIndex] = '\0';  // Null-terminate string
 
-     // Check if input matches "15215"
-    if (contains(uartData, "OK")) {
-        // printf("GOT CONFIRMATION FROM PICO1\n");
-
-        sendUART = false;
-        sendI2C = true;
+    if (contains(uartData, "FIRST OK")) {
+        status = SEND_SECOND;
 
         uartIndex = 0;
         memset(uartData, 0, sizeof(uartData));
+    }
+    else if (contains(uartData, "SECOND OK")) {
+        status = SEND_THIRD;
 
+        uartIndex = 0;
+        memset(uartData, 0, sizeof(uartData));
+    }
+    else if (contains(uartData, "THIRD OK")) {
+        status = FINISHED;
 
-        // gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        // sleep_ms(250);
-        // gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        // sleep_ms(250);
-        // gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        // sleep_ms(250);
-        // gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        // sleep_ms(250);
-        // gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        // sleep_ms(250);
-        // gpio_put(PICO_DEFAULT_LED_PIN, 0);
-
-        // const char *msg = "START I2C\n";
-        // i2c_write_blocking(i2c_default, I2C_RECEIVER, (const uint8_t *)msg, strlen(msg), false);
+        uartIndex = 0;
+        memset(uartData, 0, sizeof(uartData));
     }
 }
 
@@ -124,120 +111,49 @@ int main()
     irq_set_enabled(UART1_IRQ, true);
     uart_set_irqs_enabled(UART_ID, true, false); // RX only
 
-    // Buffer for uart input
-    // char uartBuffer[16] = {0};  // Adjust size as needed
-    // int i = 0;
-
-    // I2C setup
-    i2c_init(i2c_default, 100 * 1000);
-    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA);
-    gpio_pull_up(I2C_SCL);
-    // Make the I2C pins available to picotool
-    bi_decl(bi_2pins_with_func(I2C_SDA, I2C_SCL, GPIO_FUNC_I2C));
-
-    // printf("\nI2C Bus Scan\n");
-    // printf("   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
- 
-    // for (int addr = 0; addr < (1 << 7); ++addr) {
-    //     if (addr % 16 == 0) {
-    //         printf("%02x ", addr);
-    //     }
- 
-    //     // Perform a 1-byte dummy read from the probe address. If a slave
-    //     // acknowledges this address, the function returns the number of bytes
-    //     // transferred. If the address byte is ignored, the function returns
-    //     // -1.
- 
-    //     // Skip over any reserved addresses.
-    //     int ret;
-    //     uint8_t rxdata;
-    //     if (reserved_addr(addr))
-    //         ret = PICO_ERROR_GENERIC;
-    //     else
-    //         ret = i2c_read_blocking(i2c_default, addr, &rxdata, 1, false);
- 
-    //     printf(ret < 0 ? "." : "@");
-    //     printf(addr % 16 == 15 ? "\n" : "  ");
-    // }
-    // printf("Done.\n");
-
-
     if (watchdog_caused_reboot()) {
         printf("Rebooted by Watchdog!\n");
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
         sleep_ms(1000);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        // return 0;
     } else {
         printf("Clean boot\n");
     }
-    // watchdog_enable(4000, 1);
+    watchdog_enable(10000, 1);
 
     while (true) {    
-        // watchdog_update();
+        watchdog_update();
 
-        if (sendUART) {
-            const char *msg = "START LIGHT\n";
-            uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
+        switch (status) {
+            case SEND_FIRST:
+                const char *msg = "START LIGHT\n";
+                uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
 
-            printf("SENT UART MESSAGE\n");
+                printf("SENT 1st UART MESSAGE\n");
+                break;
+
+            case SEND_SECOND:
+                const char *msg = "START SECOND\n";
+                uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
+
+                printf("SENT 2nd UART MESSAGE\n");
+                break;
+            
+            case SEND_THIRD:
+                const char *msg = "START THIRD\n";
+                uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
+
+                printf("SENT 3rd UART MESSAGE\n");
+                break;
+
+            case FINISHED:
+                printf("Communication Finished\n");
+                gpio_put(PICO_DEFAULT_LED_PIN, 1);
+                break;
+
         }
 
-        if (sendI2C) {
-            printf("SENDING! I2C MESSAGE\n");
-
-            const char *msg = "START I2C\n";
-            i2c_write_blocking(i2c_default, I2C_RECEIVER, (const uint8_t *)msg, strlen(msg), false);
-            printf("SENT I2C MESSAGE\n");
-
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            sleep_ms(500);
-            gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        }
-        // int i = 0;
-        // while (i < sizeof(uartBuffer) - 1) {
-        // // for (int i = 0; i < sizeof(uartBuffer); i++) {
-        //     char c;
-        //     uart_read_blocking(UART_ID, (uint8_t*) &c, 1);
-
-        //     // uart_getc
-
-        //     if (c == '\n' || c == '\r' || c == '\0') {
-        //         break;
-        //     }
-
-        //     uartBuffer[i++] = c;
-        // }
-
-        // uartBuffer[i] = '\0';  // Null-terminate string
-
-        // // Check if input matches "15215"
-        // if (contains(uartBuffer, "OK")) {
-        //     printf("GOT CONFIRMATION FROM PICO1\n");
-
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        //     sleep_ms(250);
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        //     sleep_ms(250);
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        //     sleep_ms(250);
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        //     sleep_ms(250);
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        //     sleep_ms(250);
-        //     gpio_put(PICO_DEFAULT_LED_PIN, 0);
-
-        //     const char *msg = "START I2C\n";
-        //     i2c_write_blocking(i2c_default, 0x42, (const uint8_t *)msg, strlen(msg), false);
-
-        // }
-
-        // // Clear buffer and index for next input
-        // memset(uartBuffer, 0, sizeof(uartBuffer));
-
-        // watchdog_update();
+        watchdog_update();
 
         sleep_ms(1000);
     }
