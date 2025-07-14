@@ -23,7 +23,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico2 CACHE STRING "Board type")
+set(PICO_BOARD pico CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -35,7 +35,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(FirstPico FirstPico.c )
+add_executable(FirstPico 
+    FirstPico.c 
+    epd/DEV_Config.c
+    epd/EPD_7in5b_V2.c)
 
 pico_set_program_name(FirstPico "FirstPico")
 pico_set_program_version(FirstPico "0.1")
@@ -54,6 +57,7 @@ target_link_libraries(FirstPico
 # Add the standard include files to the build
 target_include_directories(FirstPico PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/epd
 )
 
 # Add any user requested libraries

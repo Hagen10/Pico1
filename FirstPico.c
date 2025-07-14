@@ -124,23 +124,25 @@ int main()
     while (true) {    
         watchdog_update();
 
+        const char *msg;
+
         switch (status) {
             case SEND_FIRST:
-                const char *msg = "START LIGHT\n";
+                msg = "START LIGHT\n";
                 uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
 
                 printf("SENT 1st UART MESSAGE\n");
                 break;
 
             case SEND_SECOND:
-                const char *msg = "START SECOND\n";
+                msg = "START SECOND\n";
                 uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
 
                 printf("SENT 2nd UART MESSAGE\n");
                 break;
             
             case SEND_THIRD:
-                const char *msg = "START THIRD\n";
+                msg = "START THIRD\n";
                 uart_write_blocking(UART_ID, (const uint8_t *)msg, strlen(msg));
 
                 printf("SENT 3rd UART MESSAGE\n");

@@ -1,5 +1,4 @@
-FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to the Kitronik experiments will be moved over to separate file called ExpOne.c, ExpTwo.c etc.
-
+FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to the Kitronik experiments will be moved over to separate files called ExpOne.c, ExpTwo.c etc. In order to test them at a later point, copy everything from the desired Exp*.c file and paste it in the FirstPico.c file. Finally, compile and run it on the connected pico.
 
 ## ExpTwo Ideas
 - Make a button that resets the cut off value to the current adc_read.
@@ -24,13 +23,30 @@ FirstPico.c is the file that is compiled and run on the Pico 1. Each solution to
 - The fix was to remove "opts pindirs" from the .side_set 1 and possibly also adding a longer sleep instead of just 80 µs. Now it's 50 ms
 - What if I want to set different colours for the differen LEDs?
 
-## Communication between Picos using UART, I2C and SPI
+## Communication between Picos using UART
+Files are called `Pico1UART.c` which is the one waiting for messaging and lights up the zip leds as a result. `Pico2UART.c` is for pico 2 which will only send out messages to request turning out LEDs on the pico 1 and wait for responses to ensure that everything was well-received. Both Picos have a watchdog configured but it's not really used for much and is only updated once per loop.
 
-Files are called `Pico1ComLights.c` which is the one waiting for messaging and lights up the zip leds as a result. `Pico2Com.c` is for pico 2 which will only send out messages and wait for responses to ensure that everything was well-received.
+### Wiring diagram
 
-### UART
+I don't have any wiring diagram software at this point, so I will try and explain it in writing instead:
 
-## Watchdogs
+#### Pico 2
+GP4 (UART TX) -> GP5 (UART RX) on the Pico 1
+GP5 (UART RX) -> GP4 (UART TX) on the Pico 1
+
+#### ZIP stick LED
+GND -> Minus line on breadboard -> any GND on Pico 1
+5VDC -> VSYS on Pico 1
+DIN -> GP16 on Pico 1
+
+#### Pico 1
+3v3 Out -> Plus line on breadboard
+
+## Sending data with SPI to E-ink Paper display (Waveshare)
+
+the epd directory contains files imported directly from [WaveShare's Github](https://github.com/waveshareteam/e-Paper/blob/master/RaspberryPi_JetsonNano/c/lib/e-Paper/EPD_7in5b_V2.c). The files have been modified slightly to ignore the `Debug` calls and to make it align with Raspberry PI Pico instead of a regular Pi running Linux.
+
+
 
 ## Debugging
 
