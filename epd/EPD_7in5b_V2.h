@@ -34,7 +34,7 @@
 #define _EPD_7IN5B_V2_H_
 
 #include "DEV_Config.h"
-
+#include "pico/stdlib.h"
 
 // Display resolution
 #define EPD_7IN5B_V2_WIDTH       800

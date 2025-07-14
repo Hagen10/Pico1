@@ -102,40 +102,32 @@ parameter:
 UBYTE EPD_7IN5B_V2_Init(void)
 {
     EPD_7IN5B_V2_Reset();
-
     EPD_7IN5B_V2_SendCommand(0x01);			//POWER SETTING
     EPD_7IN5B_V2_SendData(0x07);
     EPD_7IN5B_V2_SendData(0x07);    //VGH=20V,VGL=-20V
     EPD_7IN5B_V2_SendData(0x3f);		//VDH=15V
     EPD_7IN5B_V2_SendData(0x3f);		//VDL=-15V
-
     //Enhanced display drive(Add 0x06 command)
     EPD_7IN5B_V2_SendCommand(0x06);			//Booster Soft Start 
     EPD_7IN5B_V2_SendData(0x17);
     EPD_7IN5B_V2_SendData(0x17);   
     EPD_7IN5B_V2_SendData(0x28);	
     EPD_7IN5B_V2_SendData(0x17);	
-
     EPD_7IN5B_V2_SendCommand(0x04); //POWER ON
     DEV_Delay_ms(100);
     EPD_7IN5B_V2_WaitUntilIdle();
-
     EPD_7IN5B_V2_SendCommand(0X00);			//PANNEL SETTING
     EPD_7IN5B_V2_SendData(0x0F);   //KW-3f   KWR-2F	BWROTP 0f	BWOTP 1f
-
     EPD_7IN5B_V2_SendCommand(0x61);        	//tres
     EPD_7IN5B_V2_SendData(0x03);		//source 800
     EPD_7IN5B_V2_SendData(0x20);
     EPD_7IN5B_V2_SendData(0x01);		//gate 480
     EPD_7IN5B_V2_SendData(0xE0);
-
     EPD_7IN5B_V2_SendCommand(0X15);
     EPD_7IN5B_V2_SendData(0x00);
-
     EPD_7IN5B_V2_SendCommand(0X50);			//VCOM AND DATA INTERVAL SETTING
     EPD_7IN5B_V2_SendData(0x11);
     EPD_7IN5B_V2_SendData(0x07);
-
     EPD_7IN5B_V2_SendCommand(0X60);			//TCON SETTING
     EPD_7IN5B_V2_SendData(0x22);
     return 0;

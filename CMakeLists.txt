@@ -37,7 +37,7 @@ pico_sdk_init()
 
 add_executable(FirstPico 
     FirstPico.c 
-    epd/DEV_Config.c
+    epd/Dev_Config.c
     epd/EPD_7in5b_V2.c)
 
 pico_set_program_name(FirstPico "FirstPico")
@@ -58,6 +58,7 @@ target_link_libraries(FirstPico
 target_include_directories(FirstPico PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/epd
+        epd
 )
 
 # Add any user requested libraries

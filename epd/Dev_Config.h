@@ -54,33 +54,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-// #include "Debug.h"
-
-#ifdef RPI
-    #ifdef USE_BCM2835_LIB
-        #include <bcm2835.h>
-    #elif USE_WIRINGPI_LIB
-        #include <wiringPi.h>
-        #include <wiringPiSPI.h>
-    #elif USE_LGPIO_LIB
-        #include <lgpio.h>
-        #define LFLAGS 0
-        #define NUM_MAXBUF  4
-    #elif USE_DEV_LIB
-        #include "RPI_gpiod.h"
-        #include "dev_hardware_SPI.h"
-    #endif
-#endif
-
-#ifdef JETSON
-    #ifdef USE_DEV_LIB
-        #include "sysfs_gpio.h"    
-        #include "sysfs_software_spi.h"
-    #elif USE_HARDWARE_LIB
-        
-    #endif
-
-#endif
+#include "hardware/spi.h"
+#include "pico/stdlib.h"
 
 /**
  * data
@@ -112,8 +87,9 @@ void DEV_SPI_SendData(UBYTE Reg);
 void DEV_SPI_SendnData(UBYTE *Reg);
 UBYTE DEV_SPI_ReadData();
 
+void DEV_GPIO_Init(void);
+
 UBYTE DEV_Module_Init(void);
 void DEV_Module_Exit(void);
-
 
 #endif
