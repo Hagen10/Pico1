@@ -37,6 +37,10 @@ pico_sdk_init()
 
 add_executable(FirstPico 
     FirstPico.c 
+    epd/Fonts/font8.c
+    epd/Fonts/font12.c
+    epd/Fonts/font16.c
+    epd/GUI/GUI_Paint.c
     epd/Dev_Config.c
     epd/EPD_7in5b_V2.c)
 

@@ -12,6 +12,8 @@
 #include "epd/Dev_Config.h"
 #include "epd/EPD_7in5b_V2.h"
 #include "Dev_Config.h"
+#include "epd/GUI/GUI_Paint.h"
+#include "epd/Fonts/fonts.h"
 
 static int contains(const char *text, const char *words) {
     if (strlen(words) > strlen(text)) return false;
@@ -29,6 +31,10 @@ static int contains(const char *text, const char *words) {
     return false;
 } 
 
+const uint16_t image_size = ((EPD_7IN5B_V2_WIDTH % 8 == 0)? (EPD_7IN5B_V2_WIDTH / 8 ): (EPD_7IN5B_V2_WIDTH / 8 + 1)) * EPD_7IN5B_V2_HEIGHT;
+int height = EPD_7IN5B_V2_HEIGHT;
+int width = (EPD_7IN5B_V2_WIDTH % 8 == 0) ? EPD_7IN5B_V2_WIDTH / 8 : EPD_7IN5B_V2_WIDTH / 8 + 1;
+
 //
 // PICO 1
 //
@@ -37,8 +43,6 @@ int main()
 {
     // Needed for getting logs from `printf` via USB 
     stdio_init_all();
-
-    sleep_ms(7000);
 
     printf("Starting\n");
 
@@ -56,6 +60,23 @@ int main()
 
     EPD_7IN5B_V2_Init();
     EPD_7IN5B_V2_Clear();
+
+    DEV_Delay_ms(500);
+    UBYTE black_image[image_size];
+    UBYTE ry_image[image_size];
+
+    Paint_NewImage(black_image, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
+    Paint_Clear(WHITE);
+    Paint_NewImage(ry_image, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
+    Paint_Clear(WHITE);
+    
+    Paint_SelectImage(black_image);
+    Paint_DrawString_EN(50, 50, "Good Display", &Font12, WHITE, BLACK);  //Font8
+
+    Paint_SelectImage(ry_image);
+    Paint_DrawString_EN(250, 250, "Great Display", &Font16, WHITE, RED);  //Font8
+
+    EPD_7IN5B_V2_Display(black_image, ry_image);
 
     DEV_Delay_ms(500);
 
