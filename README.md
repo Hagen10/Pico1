@@ -28,7 +28,7 @@ Files are called `Pico1UART.c` which is the one waiting for messaging and lights
 
 ### Wiring diagram
 
-I don't have any wiring diagram software at this point, so I will try and explain it in writing instead:
+![UART](assets/UART.png)
 
 #### Pico 2
 GP4 (UART TX) -> GP5 (UART RX) on the Pico 1
@@ -39,14 +39,14 @@ GND -> Minus line on breadboard -> any GND on Pico 1
 5VDC -> VSYS on Pico 1
 DIN -> GP16 on Pico 1
 
-#### Pico 1
-3v3 Out -> Plus line on breadboard
 
 ## Sending data with SPI to E-ink Paper display (Waveshare)
 
 the epd directory contains files imported directly from [WaveShare's Github](https://github.com/waveshareteam/e-Paper/blob/master/RaspberryPi_JetsonNano/c/lib/e-Paper/EPD_7in5b_V2.c). The files have been modified slightly to ignore the `Debug` calls and to make it align with Raspberry PI Pico instead of a regular Pi running Linux.
 
+### Wiring diagram
 
+![Display](assets/Eink_display.png)
 
 ## Debugging
 
