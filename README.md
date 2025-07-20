@@ -48,6 +48,14 @@ the epd directory contains files imported directly from [WaveShare's Github](htt
 
 ![Display](assets/Eink_display.png)
 
+## 33 Minute timer
+
+A timer that runs for 33 minutes and then lights up a red led. Green led lights up when the timer is ready to be started.
+
+### Wiring diagram
+
+![Timer](assets/33_Minutes.png)
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
