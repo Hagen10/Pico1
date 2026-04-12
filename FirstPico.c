@@ -3,72 +3,128 @@
 #include "hardware/gpio.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
+#include "hardware/i2c.h"
+#include "pico/binary_info.h"
+#include "ssd1306/ssd1306.h"
 
-#define MOTOR_CONTROL 15
-#define BUTTON_DOWN 8
-#define BUTTON_UP 9
-#define SPEED_MAX 65536
-#define SPEED_MIN 0
-#define STEP 1000
+#define SDA_PIN 4
+#define SCL_PIN 5
+#define I2C_PORT i2c0
+#define OLED_ADDR 0x3C
+#define SLEEPTIME 25
 
-uint16_t current_speed = SPEED_MIN;
 // Tracking interrupt timestamps to prevent switch bouncing causing additional interrupts
 volatile absolute_time_t last_interrupt_time = 0;
 const uint DEBOUNCE_MS = 150;
 
-void change_speed(uint gpio, uint32_t event_mask) {
-    absolute_time_t now = get_absolute_time();
-    if (event_mask & GPIO_IRQ_EDGE_FALL 
-        && absolute_time_diff_us(last_interrupt_time, now) > DEBOUNCE_MS * 1000)
-    {
-        switch (gpio) {
-            case BUTTON_DOWN:
-                if (current_speed - STEP >= SPEED_MIN) {
-                    current_speed -= STEP;
-                    pwm_set_gpio_level(MOTOR_CONTROL, current_speed);
-                    // pwm_set_gpio_level(MOTOR_CONTROL, 700);
+void scan_i2c() {
+    printf("I2C scan start...\n");
 
-                    printf("decreasing speed to: %d\n", current_speed);
-                }
-                break;
-            case BUTTON_UP:
-                if (current_speed + STEP <= SPEED_MAX) {
-                    current_speed += STEP;
-                    pwm_set_gpio_level(MOTOR_CONTROL, current_speed);
-                    // pwm_set_gpio_level(MOTOR_CONTROL, 3200);
-                    printf("increasing speed to: %d\n", current_speed);
-                } 
-                break;
-            default:
-                printf("Button Press wasn't registered properly\n");
+    for (int addr = 0; addr < 127; addr++) {
+        uint8_t rxdata;
+        int result = i2c_read_blocking(I2C_PORT, addr, &rxdata, 1, false);
+
+        if (result >= 0) {
+            printf("Device found at 0x%02X\n", addr);
+            sleep_ms(1000);
         }
-        last_interrupt_time = now;
+    }
+
+    printf("Scan done.\n");
+}
+
+void i2c_init_oled() {
+    i2c_init(I2C_PORT, 400 * 1000); // 400 kHz fast mode
+
+    gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
+
+    gpio_pull_up(SDA_PIN);
+    gpio_pull_up(SCL_PIN);
+}
+
+void animation(void) {
+    const char *words[]= {"SSD1306", "DISPLAY", "DRIVER"};
+
+    ssd1306_t disp;
+    disp.external_vcc=false;
+    ssd1306_init(&disp, 128, 64, OLED_ADDR, I2C_PORT);
+    ssd1306_clear(&disp);
+
+    printf("ANIMATION!\n");
+
+    char buf[8];
+
+    for(;;) {
+        for(int y=0; y<31; ++y) {
+            ssd1306_draw_line(&disp, 0, y, 127, y);
+            ssd1306_show(&disp);
+            sleep_ms(SLEEPTIME);
+            ssd1306_clear(&disp);
+        }
+
+        for(int y=0, i=1; y>=0; y+=i) {
+            ssd1306_draw_line(&disp, 0, 31-y, 127, 31+y);
+            ssd1306_draw_line(&disp, 0, 31+y, 127, 31-y);
+            ssd1306_show(&disp);
+            sleep_ms(SLEEPTIME);
+            ssd1306_clear(&disp);
+            if(y==32) i=-1;
+        }
+
+        for(int i=0; i<sizeof(words)/sizeof(char *); ++i) {
+            ssd1306_draw_string(&disp, 8, 24, 2, words[i]);
+            ssd1306_show(&disp);
+            sleep_ms(800);
+            ssd1306_clear(&disp);
+        }
+
+        for(int y=31; y<63; ++y) {
+            ssd1306_draw_line(&disp, 0, y, 127, y);
+            ssd1306_show(&disp);
+            sleep_ms(SLEEPTIME);
+            ssd1306_clear(&disp);
+        }
+
+        ssd1306_draw_string(&disp, 5, 40, 1, "HELLO WORLD");
+        ssd1306_show(&disp);
+        sleep_ms(2000);
+        ssd1306_clear(&disp);
+
+        for (int i = 0; i < 128; ++i) {
+            ssd1306_draw_string(&disp, i, 40, 1, "HELLO WORLD");
+            ssd1306_show(&disp);
+            sleep_ms(SLEEPTIME);
+            ssd1306_clear(&disp);
+        }
+
+        for (int i = 0; i < 64; ++i) {
+            ssd1306_draw_string(&disp, 5, i, 1, "HELLO WORLD");
+            ssd1306_show(&disp);
+            sleep_ms(SLEEPTIME);
+            ssd1306_clear(&disp);
+        }
+
+        sleep_ms(2000);
     }
 }
 
 int main()
 {
-    gpio_init(MOTOR_CONTROL);
-    gpio_set_function(MOTOR_CONTROL, GPIO_FUNC_PWM);
-
-    // Additional PWM CONFIGURATION
-    uint slice_num = pwm_gpio_to_slice_num(MOTOR_CONTROL);
-    pwm_set_enabled(slice_num, true);
-
-    gpio_init(BUTTON_DOWN);
-    gpio_set_dir(BUTTON_DOWN, GPIO_IN);
-
-    gpio_init(BUTTON_UP);
-    gpio_set_dir(BUTTON_UP, GPIO_IN);
-
-    gpio_set_irq_enabled_with_callback(BUTTON_DOWN, GPIO_IRQ_EDGE_FALL, true, &change_speed);
-    gpio_set_irq_enabled_with_callback(BUTTON_UP, GPIO_IRQ_EDGE_FALL, true, &change_speed);
-
-
     // Needed for getting logs from `printf` via USB 
     stdio_init_all();
 
+    // Initialize the LED and button
+    // gpio_init(PICO_DEFAULT_LED_PIN);
+    // gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    // gpio_xor_mask(1u << PICO_DEFAULT_LED_PIN);
+
+    i2c_init_oled();
+
     while (true) {
-        tight_loop_contents();
+        animation();
+
+        sleep_ms(1000);
+    //     tight_loop_contents();
     }
 }

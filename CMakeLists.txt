@@ -42,7 +42,8 @@ add_executable(FirstPico
     epd/Fonts/font16.c
     epd/GUI/GUI_Paint.c
     epd/Dev_Config.c
-    epd/EPD_7in5b_V2.c)
+    epd/EPD_7in5b_V2.c
+    ssd1306/ssd1306.c)
 
 pico_set_program_name(FirstPico "FirstPico")
 pico_set_program_version(FirstPico "0.1")
@@ -63,6 +64,7 @@ target_include_directories(FirstPico PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/epd
         epd
+        ssd1306
 )
 
 # Add any user requested libraries
