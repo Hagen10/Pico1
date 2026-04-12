@@ -3,84 +3,72 @@
 #include "hardware/gpio.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
-#include "hardware/pio.h"
-#include "hardware/clocks.h"
-#include "hardware/watchdog.h"
-#include "string.h"
-#include "hardware/i2c.h"
-#include "pico/binary_info.h"
 
-#define RED_LED 13
-#define GREEN_LED 14
+#define MOTOR_CONTROL 15
+#define BUTTON_DOWN 8
+#define BUTTON_UP 9
+#define SPEED_MAX 65536
+#define SPEED_MIN 0
+#define STEP 1000
 
-#define START_BUTTON 15
-// 33 Minutes
-#define TIME 1980000
-
-uint8_t leds[] = {RED_LED, GREEN_LED};
-
-volatile alarm_id_t timer_id = -1;
-
+uint16_t current_speed = SPEED_MIN;
 // Tracking interrupt timestamps to prevent switch bouncing causing additional interrupts
 volatile absolute_time_t last_interrupt_time = 0;
 const uint DEBOUNCE_MS = 150;
 
-int64_t alarm_callback(alarm_id_t id, void *user_data) {
-    printf("%d seconds have passed!\n", TIME);
-    gpio_put(RED_LED, 1);
-    return 0; // 0 means one-shot; non-zero would reschedule
-}
-
-void button_pressed(uint gpio, uint32_t event_mask) {
+void change_speed(uint gpio, uint32_t event_mask) {
     absolute_time_t now = get_absolute_time();
-    printf("BUTTON PRESSED\n");
-    
-    if (event_mask & GPIO_IRQ_EDGE_FALL
-        && absolute_time_diff_us(last_interrupt_time, now) > DEBOUNCE_MS * 1000) {
-        
-        if (timer_id != -1) {
-            // Reset timer
-            cancel_alarm(timer_id);
-            timer_id = -1;
-            gpio_put(GREEN_LED, 1);
-            gpio_put(RED_LED, 0);
-        }
-        else {
-            // start timer
-            timer_id = add_alarm_in_ms(TIME, alarm_callback, NULL, false);
-            gpio_put(GREEN_LED, 0);
-            gpio_put(RED_LED, 0);
-        }
+    if (event_mask & GPIO_IRQ_EDGE_FALL 
+        && absolute_time_diff_us(last_interrupt_time, now) > DEBOUNCE_MS * 1000)
+    {
+        switch (gpio) {
+            case BUTTON_DOWN:
+                if (current_speed - STEP >= SPEED_MIN) {
+                    current_speed -= STEP;
+                    pwm_set_gpio_level(MOTOR_CONTROL, current_speed);
+                    // pwm_set_gpio_level(MOTOR_CONTROL, 700);
 
+                    printf("decreasing speed to: %d\n", current_speed);
+                }
+                break;
+            case BUTTON_UP:
+                if (current_speed + STEP <= SPEED_MAX) {
+                    current_speed += STEP;
+                    pwm_set_gpio_level(MOTOR_CONTROL, current_speed);
+                    // pwm_set_gpio_level(MOTOR_CONTROL, 3200);
+                    printf("increasing speed to: %d\n", current_speed);
+                } 
+                break;
+            default:
+                printf("Button Press wasn't registered properly\n");
+        }
         last_interrupt_time = now;
     }
 }
 
-//
-// PICO 1
-//
-
 int main()
 {
+    gpio_init(MOTOR_CONTROL);
+    gpio_set_function(MOTOR_CONTROL, GPIO_FUNC_PWM);
+
+    // Additional PWM CONFIGURATION
+    uint slice_num = pwm_gpio_to_slice_num(MOTOR_CONTROL);
+    pwm_set_enabled(slice_num, true);
+
+    gpio_init(BUTTON_DOWN);
+    gpio_set_dir(BUTTON_DOWN, GPIO_IN);
+
+    gpio_init(BUTTON_UP);
+    gpio_set_dir(BUTTON_UP, GPIO_IN);
+
+    gpio_set_irq_enabled_with_callback(BUTTON_DOWN, GPIO_IRQ_EDGE_FALL, true, &change_speed);
+    gpio_set_irq_enabled_with_callback(BUTTON_UP, GPIO_IRQ_EDGE_FALL, true, &change_speed);
+
+
     // Needed for getting logs from `printf` via USB 
     stdio_init_all();
 
-    // Initialize all the LEDs
-    for (int i = 0; i < sizeof(leds); i++) {
-        gpio_init(leds[i]);
-        gpio_set_dir(leds[i], GPIO_OUT);
-    }
-
-    // Initializing button
-    gpio_init(START_BUTTON);
-    gpio_set_dir(START_BUTTON, GPIO_IN);
-    gpio_pull_down(START_BUTTON);  // Use internal pull-down resistor
-    gpio_set_irq_enabled_with_callback(START_BUTTON, GPIO_IRQ_EDGE_FALL, true, &button_pressed);
-
-    // Timer is ready to be started
-    gpio_put(GREEN_LED, 1);
-
-    while (true) {    
+    while (true) {
         tight_loop_contents();
     }
 }
