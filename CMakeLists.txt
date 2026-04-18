@@ -65,6 +65,7 @@ target_include_directories(FirstPico PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/epd
         epd
         ssd1306
+        ICM20948
 )
 
 # Add any user requested libraries
