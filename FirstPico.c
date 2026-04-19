@@ -20,7 +20,7 @@ ssd1306_t disp;
 
 int16_t ax, ay, az, gx, gy, gz, my, mx, mz;
 
-int32_t gx_offset = 0, gy_offset = 0, gz_offset = 0, ax_offset = 0, ay_offset = 0, az_offset = 0;
+int32_t gx_offset = 0, gy_offset = 0, gz_offset = 0, ax_offset = 0, ay_offset = 0, az_offset = 0, mx_offset = 0, my_offset = 0, mz_offset = 0;
 
 static char text[32];
 
@@ -174,105 +174,7 @@ void icm20948_init_acc_gyro(i2c_inst_t *i2c, uint8_t addr) {
     write_reg(i2c, addr, ACCEL_SMPLRT_DIV_2, 0x0A);
 }
 
-void init_mag(i2c_inst_t *i2c, uint8_t addr) {
-    select_bank(i2c, addr, BANK0);
-
-    // Magnet configure
-    write_reg(i2c, addr, USER_CTRL, 0x20);  // I2C_MST_EN
-    sleep_ms(10);
-
-    select_bank(i2c, addr, BANK3);
-    // Setting clock cycle to 345.60 Hz which is recommended when targeting 400.
-    write_reg(i2c, addr, I2C_MST_CTRL, 0x07);
-
-    sleep_ms(10);
-
-    // Reset magnetometer
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x0C); // I2C_SLV0_ADDR (write mode)
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_CNTL3); // I2C_SLV0_REG
-    write_reg(i2c, addr, I2C_SLV0_DO, 0x01); // I2C_SLV0_DO (mode 100Hz)
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, 1 byte
-    sleep_ms(100);
-    // Disable SLV0 after write
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x00);
-
-    // Set continuous mode
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x0C); // I2C_SLV0_ADDR (write mode)
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_CNTL2); // I2C_SLV0_REG
-    write_reg(i2c, addr, I2C_SLV0_DO, 0x08); // I2C_SLV0_DO (mode 100Hz)
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, 1 byte
-    sleep_ms(50);
-
-    // Disable SLV0 after write
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x00);
-
-    // Configure continuous read via SLV0
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x8C);
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_XOUT_L);
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x86); // 6 bytes
-    sleep_ms(10);
-
-    select_bank(i2c, addr, BANK0);
-}
-
-void icm20948_init_mag(i2c_inst_t *i2c, uint8_t addr) {
-     // MAGNET CONFIGURATION!!!!
-    
-    // Back to bank 0
-    select_bank(i2c, addr, BANK0);
-
-    // Magnet configure
-    write_reg(i2c, addr, USER_CTRL, 0x20);  // I2C_MST_EN
-
-    sleep_ms(10);
-
-    select_bank(i2c, addr, BANK3);
-    // Setting clock cycle to 345.60 Hz which is recommended when targeting 400.
-    write_reg(i2c, addr, I2C_MST_CTRL, 0x07);
-
-    sleep_ms(10);
-
-    select_bank(i2c, addr, BANK3);
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x0C); // I2C_SLV0_ADDR (write mode)
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_CNTL2); // I2C_SLV0_REG
-    write_reg(i2c, addr, I2C_SLV0_DO, 0x08); // I2C_SLV0_DO (mode 100Hz)
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, 1 byte
-    sleep_ms(50);
-
-    select_bank(i2c, addr, BANK3);
-    // FORCING A RE-TRIGGER
-    write_reg(i2c, addr, 0x05, 0x00);
-    sleep_ms(5);
-    write_reg(i2c, addr, 0x05, 0x81);
-    sleep_ms(50);
-
-    // CHECKING CNTL2 AGAIN
-    select_bank(i2c, addr, BANK3);
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x8C); // I2C_SLV0_ADDR (read mode, 0x0C | 0x80)
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_CNTL2); // start register (HXL)
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, read 6 bytes
-
-    sleep_ms(10);
-
-    select_bank(i2c, addr, BANK0);
-
-    uint8_t val;
-    read_regs(i2c, addr, EXT_SENS_DATA_00, &val, 1);
-
-    printf("CNTL2: 0x%02X\n", val);
-
-    read_regs(i2c, addr, USER_CTRL, &val, 1);
-
-    printf("USERCONTROL: 0x%02X\n", val);
-
-    select_bank(i2c, addr, BANK3);
-
-    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x8C);
-    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_XOUT_L);
-    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x86); // 6 bytes
-}
-
-void init_mag_2(void) {
+void init_mag(void) {
     uint8_t buf;
 
     select_bank(I2C_PORT, IMU_ADDR, BANK0);
@@ -282,25 +184,11 @@ void init_mag_2(void) {
 
     printf("MAG WHO_AM_I: 0x%02X\n", buf);
 
-    write_reg(I2C_PORT, MAG_ADDR, AK09916_CNTL2, 0x08);
+    write_reg(I2C_PORT, MAG_ADDR, AK09916_CNTL2, 0x08); // 100 Hz continuous
 }
 
 void read_mag() {
-    uint8_t buf[6];
-
-    // select_bank(I2C_PORT, IMU_ADDR, BANK3);
-    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_REG, 0x10);
-    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_CTRL, 0x81);
-
-    // select_bank(I2C_PORT, IMU_ADDR, BANK0);
-    // read_regs(I2C_PORT, IMU_ADDR, EXT_SENS_DATA_00, buf, 6);
-
-    // mx = (buf[1] << 8) | buf[0];
-    // my = (buf[3] << 8) | buf[2];
-    // mz = (buf[5] << 8) | buf[4];
-
-
-    // akiona github
+    // akionu github
     uint8_t bufs[8];
 
     read_regs(I2C_PORT, MAG_ADDR, AK09916_XOUT_L, bufs, 8);
@@ -308,26 +196,40 @@ void read_mag() {
     mx = (bufs[1] << 8) | bufs[0];
     my = (bufs[3] << 8) | bufs[2];
     mz = (bufs[5] << 8) | bufs[4];
+}
 
+void calibrate_mag() {
+    uint8_t bufs[8];
 
-    // Read 1 byte from mag WHO_AM_I (0x01)
+    int16_t max[3] = {0}, min[3] = {0};
 
+    int16_t range = 1000;
 
+    printf("CALIBRATING MAG");
 
+    for (int16_t i = 0; i < range; i++) {
+        read_regs(I2C_PORT, MAG_ADDR, AK09916_XOUT_L, bufs, 8);
 
-    // // TO CHECK THAT THE MAG WHO AM IS 0x09.
-    // select_bank(I2C_PORT, IMU_ADDR, BANK3);
-    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_ADDR, 0x8C);
-    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_REG, WHO_AM_I_AK09916);
-    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_CTRL, 0x81);
+        mx = (bufs[1] << 8) | bufs[0];
+        if (mx > max[0]) max[0] = mx;
+        if (mx < min[0]) min[0] = mx;
 
-    // sleep_ms(10);
+        my = (bufs[3] << 8) | bufs[2];
+        if (my > max[1]) max[1] = my;
+        if (my < min[1]) min[1] = my;
 
-    // uint8_t whoami;
-    // select_bank(I2C_PORT, IMU_ADDR, BANK0);
-    // read_regs(I2C_PORT, IMU_ADDR, EXT_SENS_DATA_00, &whoami, 1);
+        mz = (bufs[5] << 8) | bufs[4];
+        if (mz > max[2]) max[2] = mz;
+        if (mz < min[2]) min[2] = mz;
 
-    // printf("MAG WHO_AM_I: 0x%02X\n", whoami);
+        sleep_ms(2);
+    }
+
+    mx_offset = (max[0] + min[0]) / 2;
+    my_offset = (max[1] + min[1]) / 2;
+    mz_offset = (max[2] + min[2]) / 2;
+
+    printf("DONE CALIBRATING! - OFFSETS : %d %d %d\n\n", mx_offset, my_offset, mz_offset);
 }
 
 void read_imu(i2c_inst_t *i2c, uint8_t addr) {
@@ -397,7 +299,8 @@ void displayText(void) {
 
 
     ssd1306_draw_string(&disp, 0, 40, 1, "COMPAS:");
-    snprintf(text, sizeof(text), "%d %d %d", mx, my, mz);
+    snprintf(text, sizeof(text), "%d %d %d", mx - mx_offset, my - my_offset, mz - mz_offset);
+    // snprintf(text, sizeof(text), "%d %d %d", mx, my, mz);
     ssd1306_draw_string(&disp, 5, 48, 1, text);
 
     ssd1306_show(&disp);
@@ -425,24 +328,14 @@ int main()
 
     // icm20948_init_mag(I2C_PORT, IMU_ADDR);
     // init_mag(I2C_PORT, IMU_ADDR);
-    init_mag_2();
+    init_mag();
 
     init_oled();
 
     calibrate_acc_and_gyro();
 
-    // snprintf(text, sizeof(text), "WHO_AM_I: 0x%02X", whoami);
-    // ssd1306_draw_string(&disp, 5, 40, 1, text);
-
-    // snprintf(text, sizeof(text), "WHO_AM_I");
-    // ssd1306_draw_string(&disp, 0, 0, 1, "WHO_AM_I:");
-
-    // snprintf(text, sizeof(text), "0x%02X", whoami);
-    // ssd1306_draw_string(&disp, 5, 8, 1, text);
-
-    // ssd1306_show(&disp);
-
     // scan_i2c();
+    calibrate_mag();
 
     while (true) {
         read_imu(I2C_PORT, IMU_ADDR);
