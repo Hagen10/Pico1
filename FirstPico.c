@@ -13,9 +13,14 @@
 #define I2C_PORT i2c0
 #define OLED_ADDR 0x3C
 #define IMU_ADDR 0x68
+#define MAG_ADDR 0x0C
 #define SLEEPTIME 25
 
 ssd1306_t disp;
+
+int16_t ax, ay, az, gx, gy, gz, my, mx, mz;
+
+int32_t gx_offset = 0, gy_offset = 0, gz_offset = 0, ax_offset = 0, ay_offset = 0, az_offset = 0;
 
 static char text[32];
 
@@ -136,7 +141,7 @@ void select_bank(i2c_inst_t *i2c, uint8_t addr, uint8_t bank) {
     write_reg(i2c, addr, REG_BANK_SEL, bank << 4);
 }
 
-void icm20948_init(i2c_inst_t *i2c, uint8_t addr) {
+void icm20948_init_acc_gyro(i2c_inst_t *i2c, uint8_t addr) {
     sleep_ms(100);
 
     // Reset device
@@ -151,13 +156,102 @@ void icm20948_init(i2c_inst_t *i2c, uint8_t addr) {
     select_bank(i2c, addr, BANK2);
 
     // Gyro config (±250 dps)
-    write_reg(i2c, addr, 0x01, 0x00);
+    // write_reg(i2c, addr, GYRO_CONFIG_1, 0x00);
+    // Gyro low pass
+    // From ChatGPT
+    // write_reg(i2c, addr, GYRO_CONFIG_1, 0x05);
+    // From github which gives them a higher range but still stable
+    write_reg(i2c, addr, GYRO_CONFIG_1, 0x29);
+    write_reg(i2c, addr, GYRO_SMPLRT_DIV, 0x0A);
 
     // Accel config (±2g)
-    write_reg(i2c, addr, 0x14, 0x00);
+    // write_reg(i2c, addr, ACCEL_CONFIG, 0x00);
+    // Accel low-pass
+    // From chatgpt
+    // write_reg(i2c, addr, ACCEL_CONFIG, 0x05);
+    // From github which gives them a higher range but still stable
+    write_reg(i2c, addr, ACCEL_CONFIG, 0x11);
+    write_reg(i2c, addr, ACCEL_SMPLRT_DIV_2, 0x0A);
+}
 
+void icm20948_init_mag(i2c_inst_t *i2c, uint8_t addr) {
+     // MAGNET CONFIGURATION!!!!
+    
     // Back to bank 0
     select_bank(i2c, addr, BANK0);
+
+    // Magnet configure
+    write_reg(i2c, addr, USER_CTRL, 0x20);  // I2C_MST_EN
+
+    sleep_ms(10);
+
+    select_bank(i2c, addr, BANK3);
+    // Setting clock cycle to 345.60 Hz which is recommended when targeting 400.
+    write_reg(i2c, addr, I2C_MST_CTRL, 0x07);
+
+    sleep_ms(10);
+
+    select_bank(i2c, addr, BANK3);
+    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x0C); // I2C_SLV0_ADDR (write mode)
+    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_CNTL2); // I2C_SLV0_REG
+    write_reg(i2c, addr, I2C_SLV0_DO, 0x08); // I2C_SLV0_DO (mode 100Hz)
+    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, 1 byte
+    sleep_ms(50);
+
+    select_bank(i2c, addr, BANK3);
+    // FORCING A RE-TRIGGER
+    write_reg(i2c, addr, 0x05, 0x00);
+    sleep_ms(5);
+    write_reg(i2c, addr, 0x05, 0x81);
+    sleep_ms(50);
+
+    // CHECKING CNTL2 AGAIN
+    select_bank(i2c, addr, BANK3);
+    write_reg(i2c, addr, I2C_SLV0_ADDR, 0x8C); // I2C_SLV0_ADDR (read mode, 0x0C | 0x80)
+    write_reg(i2c, addr, I2C_SLV0_REG, AK09916_XOUT_L); // start register (HXL)
+    write_reg(i2c, addr, I2C_SLV0_CTRL, 0x81); // enable, read 6 bytes
+
+    sleep_ms(10);
+
+    select_bank(i2c, addr, BANK0);
+
+    uint8_t val;
+    read_regs(i2c, addr, EXT_SENS_DATA_00, &val, 1);
+
+    printf("CNTL2: 0x%02X\n", val);
+
+    read_regs(i2c, addr, USER_CTRL, &val, 1);
+
+    printf("USERCONTROL: 0x%02X\n", val);
+}
+
+void read_mag() {
+    uint8_t buf[6];
+
+    select_bank(I2C_PORT, IMU_ADDR, BANK0);
+    read_regs(I2C_PORT, IMU_ADDR, EXT_SENS_DATA_00, buf, 6);
+
+    mx = (buf[1] << 8) | buf[0];
+    my = (buf[3] << 8) | buf[2];
+    mz = (buf[5] << 8) | buf[4];
+
+    // Read 1 byte from mag WHO_AM_I (0x01)
+
+
+
+    // TO CHECK THAT THE MAG WHO AM IS 0x09.
+    // select_bank(I2C_PORT, IMU_ADDR, BANK3);
+    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_ADDR, 0x8C);
+    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_REG, WHO_AM_I_AK09916);
+    // write_reg(I2C_PORT, IMU_ADDR, I2C_SLV0_CTRL, 0x81);
+
+    // sleep_ms(10);
+
+    // uint8_t whoami;
+    // select_bank(I2C_PORT, IMU_ADDR, BANK0);
+    // read_regs(I2C_PORT, IMU_ADDR, EXT_SENS_DATA_00, &whoami, 1);
+
+    // printf("MAG WHO_AM_I: 0x%02X\n", whoami);
 }
 
 void read_imu(i2c_inst_t *i2c, uint8_t addr) {
@@ -168,27 +262,67 @@ void read_imu(i2c_inst_t *i2c, uint8_t addr) {
     // Read accel (6 bytes) + gyro (6 bytes)
     read_regs(i2c, addr, 0x2D, buf, 12);
 
-    int16_t ax = (buf[0] << 8) | buf[1];
-    int16_t ay = (buf[2] << 8) | buf[3];
-    int16_t az = (buf[4] << 8) | buf[5];
+    ax = (buf[0] << 8) | buf[1];
+    ay = (buf[2] << 8) | buf[3];
+    az = (buf[4] << 8) | buf[5];
 
-    int16_t gx = (buf[6] << 8) | buf[7];
-    int16_t gy = (buf[8] << 8) | buf[9];
-    int16_t gz = (buf[10] << 8) | buf[11];
+    gx = (buf[6] << 8) | buf[7];
+    gy = (buf[8] << 8) | buf[9];
+    gz = (buf[10] << 8) | buf[11];
 
-    printf("ACCEL: %d %d %d\n", ax, ay, az);
-    printf("GYRO : %d %d %d\n\n", gx, gy, gz);
+    // printf("ACCEL: %d %d %d\n", ax, ay, az);
+    // printf("GYRO : %d %d %d\n\n", gx, gy, gz);
+}
 
+void calibrate_acc_and_gyro(void) {
+    printf("CALIBRATING!!!");
+
+    int16_t range = 1000;
+
+    for (int i = 0; i < range; i++) {
+        read_imu(I2C_PORT, IMU_ADDR);
+
+        gx_offset += gx;
+        gy_offset += gy;
+        gz_offset += gz;
+
+        ax_offset += ax;
+        ay_offset += ay;
+        az_offset += az;
+
+        sleep_ms(2);
+        // printf("TEMP OFFSETS : %d %d %d\n\n", gx_offset, gy_offset, gz_offset);
+    }
+
+    gx_offset /= range;
+    gy_offset /= range;
+    gz_offset /= range;
+
+    ax_offset /= range;
+    ay_offset /= range;
+    az_offset /= range;
+
+    printf("DONE CALIBRATING! - OFFSETS : %d %d %d\n\n", gx_offset, gy_offset, gz_offset);
+}
+
+void displayText(void) {
     ssd1306_clear(&disp);
+
     ssd1306_draw_string(&disp, 0, 0, 1, "ACCEL:");
-    snprintf(text, sizeof(text), "%d %d %d", ax, ay, az);
+    snprintf(text, sizeof(text), "%d %d %d", ax - ax_offset, ay - ay_offset, az - az_offset);
+    // snprintf(text, sizeof(text), "%d %d %d", ax, ay, az);
     ssd1306_draw_string(&disp, 5, 8, 1, text);
 
 
     ssd1306_draw_string(&disp, 0, 20, 1, "GYRO:");
-    snprintf(text, sizeof(text), "%d %d %d", gx, gy, gz);
-
+    snprintf(text, sizeof(text), "%d %d %d", gx - gx_offset, gy - gy_offset, gz - gz_offset);
+    // snprintf(text, sizeof(text), "%d %d %d", gx, gy, gz);
     ssd1306_draw_string(&disp, 5, 28, 1, text);
+
+
+    ssd1306_draw_string(&disp, 0, 40, 1, "COMPAS:");
+    snprintf(text, sizeof(text), "%d %d %d", mx, my, mz);
+    ssd1306_draw_string(&disp, 5, 48, 1, text);
 
     ssd1306_show(&disp);
 }
@@ -207,13 +341,17 @@ int main()
 
     sleep_ms(5000);
 
-    icm20948_init(I2C_PORT, IMU_ADDR);
+    icm20948_init_acc_gyro(I2C_PORT, IMU_ADDR);
 
     uint8_t whoami;
     read_regs(i2c0, IMU_ADDR, 0x00, &whoami, 1);
     printf("WHO_AM_I: 0x%02X\n", whoami);
 
+    icm20948_init_mag(I2C_PORT, IMU_ADDR);
+
     init_oled();
+
+    calibrate_acc_and_gyro();
 
     // snprintf(text, sizeof(text), "WHO_AM_I: 0x%02X", whoami);
     // ssd1306_draw_string(&disp, 5, 40, 1, text);
@@ -230,6 +368,9 @@ int main()
 
     while (true) {
         read_imu(I2C_PORT, IMU_ADDR);
+        read_mag();
+
+        displayText();
         sleep_ms(200);
 
         // animation();
