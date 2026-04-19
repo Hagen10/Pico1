@@ -14,7 +14,8 @@
 #define AK09916_ZOUT_H   0x16
 #define AK09916_ST2      0x18  
 #define AK09916_CNTL     0x30  
-#define AK09916_CNTL2    0x31  
+#define AK09916_CNTL2    0x31
+#define AK09916_CNTL3    0x32
 
 // ICM20948
 // User Bank 0
