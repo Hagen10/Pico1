@@ -15,8 +15,6 @@
 #define ECHO_PIN 11
 #define I2C_PORT i2c0
 #define OLED_ADDR 0x3C
-#define SLEEPTIME 25
-#define DISPLAY_UPDATE_US 50000
 
 #define OLED_W 128
 #define OLED_H 64
@@ -24,31 +22,9 @@
 #define CENTER_X (OLED_W / 2)
 
 ssd1306_t disp;
-absolute_time_t last_time, last_display_time, now;
-uint8_t whoami;
-repeating_timer_t imu_timer;
 
 // Display text
 static char text[32];
-
-void scan_i2c()
-{
-    printf("I2C scan start...\n");
-
-    for (int addr = 0; addr < 127; addr++)
-    {
-        uint8_t rxdata;
-        int result = i2c_read_blocking(I2C_PORT, addr, &rxdata, 1, false);
-
-        if (result >= 0)
-        {
-            printf("Device found at 0x%02X\n", addr);
-            sleep_ms(100);
-        }
-    }
-
-    printf("Scan done.\n");
-}
 
 void i2c_setup()
 {
@@ -77,36 +53,6 @@ void init_oled(void)
     disp.external_vcc = false;
     ssd1306_init(&disp, 128, 64, OLED_ADDR, I2C_PORT);
     ssd1306_clear(&disp);
-}
-
-// Write to IMU register
-void write_reg(i2c_inst_t *i2c, uint8_t addr, uint8_t reg, uint8_t value)
-{
-    uint8_t buf[2] = {reg, value};
-    i2c_write_blocking(i2c, addr, buf, 2, false);
-}
-
-// Read IMU register
-void read_regs(i2c_inst_t *i2c, uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
-{
-    i2c_write_blocking(i2c, addr, &reg, 1, true);
-    i2c_read_blocking(i2c, addr, buf, len, false);
-}
-
-// Select bank
-void select_bank(i2c_inst_t *i2c, uint8_t addr, uint8_t bank)
-{
-    write_reg(i2c, addr, REG_BANK_SEL, bank << 4);
-}
-
-void draw_center_marker()
-{
-    int cx = CENTER_X;
-    int cy = CENTER_Y;
-
-    ssd1306_draw_pixel(&disp, cx, cy);
-    ssd1306_draw_pixel(&disp, cx - 2, cy);
-    ssd1306_draw_pixel(&disp, cx + 2, cy);
 }
 
 float hcsr04_read_distance_cm(void)

@@ -447,7 +447,7 @@ void update_gyro_bias()
     az_prev = azf;
 }
 
-// Add alternative to Madgwick when magnetometer fails
+// Add alternative to Madgwick when magnetometer fails. TO-DO: This didn't seem to work. Needs revision
 void complementary_filter_update(float gx, float gy, float gz,
                                  float ax, float ay, float az,
                                  float dt)

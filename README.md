@@ -64,6 +64,10 @@ Trying out the IMU20948. There is still quite an amount of drift when stable and
 
 ![Timer](assets/IMU.png)
 
+## Sonar HC-SR04
+
+For some reason the trigger and echo pins have SCL and SDA written on them which made me think they were for I2C communication, but they are not.. Anyway, this is quite a simple setup, so I haven't made a diagram, but the sonar device can use 3.3 volts as the screen does. Just connect the trigger and echo pins directly to the raspberry pi, and for that reason the same can be done for the screen so it's not connected through the breadboard.
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
