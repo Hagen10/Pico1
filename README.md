@@ -56,6 +56,14 @@ A timer that runs for 33 minutes and then lights up a red led. Green led lights 
 
 ![Timer](assets/33_Minutes.png)
 
+## IMU
+
+Trying out the IMU20948. There is still quite an amount of drift when stable and I haven't fixed it yet. There are two files. imu.c simply outputs the gyro, magnet and accelerometer values to the screen whereas the imu_with_madgwick.c file uses the madgwick algorithm to display a moving horizon on the screen when moving the IMU. Pretty cool if I must say so, but still the drift is a major problem for any actual usage.
+
+### Wiring diagram
+
+![Timer](assets/IMU.png)
+
 ## Debugging
 
 CMakeLists.txt has `pico_enable_stdio_usb(FirstPico 1)` set to 1 to allow us to get logs from `printf` in our terminal. To disable this, set it to `0`.
