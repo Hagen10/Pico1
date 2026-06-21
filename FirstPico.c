@@ -3,162 +3,130 @@
 #include "hardware/gpio.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
-#include "hardware/i2c.h"
-#include "pico/binary_info.h"
-#include "ssd1306/ssd1306.h"
-#include "ICM20948/ICM20948_register.h"
-#include <math.h>
+#include <string.h>
 
-#define SDA_PIN 4
-#define SCL_PIN 5
-#define TRIG_PIN 10
-#define ECHO_PIN 11
-#define I2C_PORT i2c0
-#define OLED_ADDR 0x3C
-#define SLEEPTIME 25
-#define DISPLAY_UPDATE_US 50000
+#define GREEN_LED 16
+#define SWITCH 5
+#define RED_LED 15
 
-#define OLED_W 128
-#define OLED_H 64
-#define CENTER_Y (OLED_H / 2)
-#define CENTER_X (OLED_W / 2)
+const uint32_t EDGE_DEBOUNCE_US = 30000;       // 30 ms
+const uint32_t DOT_DASH_THRESHOLD_US = 250000; // 250 ms
+#define MESSAGE_TIMEOUT_MS 1400
 
-ssd1306_t disp;
-absolute_time_t last_time, last_display_time, now;
-uint8_t whoami;
-repeating_timer_t imu_timer;
+const char target_sos[] = "...---...";
 
-// Display text
-static char text[32];
+volatile absolute_time_t last_edge_time = {0};
+volatile absolute_time_t press_start_time = {0};
+volatile absolute_time_t last_symbol_time = {0};
+volatile bool waiting_for_release = false;
+volatile bool message_ready = false;
 
-void scan_i2c()
+char morse_buffer[32];
+volatile int morse_len = 0;
+
+void switch_pressed(uint gpio, uint32_t event_mask)
 {
-    printf("I2C scan start...\n");
+    if (gpio != SWITCH)
+        return;
 
-    for (int addr = 0; addr < 127; addr++)
+    absolute_time_t now = get_absolute_time();
+    uint64_t dt = absolute_time_diff_us(last_edge_time, now);
+    if (dt < EDGE_DEBOUNCE_US)
+        return;
+    last_edge_time = now;
+
+    if (event_mask & GPIO_IRQ_EDGE_FALL)
     {
-        uint8_t rxdata;
-        int result = i2c_read_blocking(I2C_PORT, addr, &rxdata, 1, false);
+        press_start_time = now;
+        pwm_set_gpio_level(RED_LED, 65000);
+        waiting_for_release = true;
+        return;
+    }
 
-        if (result >= 0)
+    if ((event_mask & GPIO_IRQ_EDGE_RISE) && waiting_for_release)
+    {
+        uint64_t press_us = absolute_time_diff_us(press_start_time, now);
+
+        if (morse_len < (int)sizeof(morse_buffer) - 1)
         {
-            printf("Device found at 0x%02X\n", addr);
-            sleep_ms(100);
+            pwm_set_gpio_level(RED_LED, 0);
+            morse_buffer[morse_len++] = press_us < DOT_DASH_THRESHOLD_US ? '.' : '-';
+            morse_buffer[morse_len] = '\0';
+            printf("MORSE: %s\n", morse_buffer);
+            last_symbol_time = now;
         }
+        waiting_for_release = false;
     }
-
-    printf("Scan done.\n");
 }
 
-void i2c_setup()
+void blink_symbol(bool dash)
 {
-    i2c_init(I2C_PORT, 400 * 1000); // 400 kHz fast mode
-
-    // pins for OLED and IMU
-    gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(SDA_PIN);
-    gpio_pull_up(SCL_PIN);
+    pwm_set_gpio_level(GREEN_LED, 65000);
+    sleep_ms(dash ? 800 : 100);
+    pwm_set_gpio_level(GREEN_LED, 0);
+    sleep_ms(200);
 }
 
-void hcsr04_init(void)
+void send_morse_ok(void)
 {
-    gpio_init(TRIG_PIN);
-    gpio_set_dir(TRIG_PIN, GPIO_OUT);
-    gpio_put(TRIG_PIN, 0);
-
-    gpio_init(ECHO_PIN);
-    gpio_set_dir(ECHO_PIN, GPIO_IN);
-    gpio_pull_down(ECHO_PIN); // optional
-}
-
-void init_oled(void)
-{
-    disp.external_vcc = false;
-    ssd1306_init(&disp, 128, 64, OLED_ADDR, I2C_PORT);
-    ssd1306_clear(&disp);
-}
-
-// Write to IMU register
-void write_reg(i2c_inst_t *i2c, uint8_t addr, uint8_t reg, uint8_t value)
-{
-    uint8_t buf[2] = {reg, value};
-    i2c_write_blocking(i2c, addr, buf, 2, false);
-}
-
-// Read IMU register
-void read_regs(i2c_inst_t *i2c, uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
-{
-    i2c_write_blocking(i2c, addr, &reg, 1, true);
-    i2c_read_blocking(i2c, addr, buf, len, false);
-}
-
-// Select bank
-void select_bank(i2c_inst_t *i2c, uint8_t addr, uint8_t bank)
-{
-    write_reg(i2c, addr, REG_BANK_SEL, bank << 4);
-}
-
-void draw_center_marker()
-{
-    int cx = CENTER_X;
-    int cy = CENTER_Y;
-
-    ssd1306_draw_pixel(&disp, cx, cy);
-    ssd1306_draw_pixel(&disp, cx - 2, cy);
-    ssd1306_draw_pixel(&disp, cx + 2, cy);
-}
-
-float hcsr04_read_distance_cm(void)
-{
-    // Trigger a 10µs pulse
-    gpio_put(TRIG_PIN, 0);
-    sleep_us(2);
-    gpio_put(TRIG_PIN, 1);
-    sleep_us(10);
-    gpio_put(TRIG_PIN, 0);
-
-    // Wait for echo high
-    while (!gpio_get(ECHO_PIN))
+    printf("Printing answer!\n");
+    const char *ok = "--- -.-";
+    for (const char *p = ok; *p; ++p)
     {
-        tight_loop_contents();
+        if (*p == '.')
+            blink_symbol(false);
+        else if (*p == '-')
+            blink_symbol(true);
+        else
+            sleep_ms(200);
     }
-    uint64_t start = time_us_64();
-
-    // Wait for echo low
-    while (gpio_get(ECHO_PIN))
-    {
-        tight_loop_contents();
-    }
-    uint64_t end = time_us_64();
-
-    uint64_t pulse_width = end - start;
-    float distance_cm = pulse_width * 0.0343f / 2.0f;
-    return distance_cm;
 }
 
 int main()
 {
+    gpio_init(GREEN_LED);
+    gpio_set_function(GREEN_LED, GPIO_FUNC_PWM);
+
+    gpio_init(RED_LED);
+    gpio_set_function(RED_LED, GPIO_FUNC_PWM);
+
+    // Additional PWM CONFIGURATION
+    uint slice_num = pwm_gpio_to_slice_num(GREEN_LED);
+    pwm_set_enabled(slice_num, true);
+
+    uint slice2_num = pwm_gpio_to_slice_num(RED_LED);
+    pwm_set_enabled(slice2_num, true);
+
+    gpio_init(SWITCH);
+    gpio_set_dir(SWITCH, GPIO_IN);
+    gpio_pull_up(SWITCH); // Use internal pull-down resistor
+    gpio_set_irq_enabled_with_callback(SWITCH, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &switch_pressed);
+
     // Needed for getting logs from `printf` via USB
     stdio_init_all();
 
-    i2c_setup();
-    hcsr04_init();
-    init_oled();
-
-    sleep_ms(5000);
-    printf("SLEEP DONE!.\n");
-
-    while (1)
+    while (true)
     {
-        float dist = hcsr04_read_distance_cm();
+        absolute_time_t now = get_absolute_time();
 
-        printf("Distance: %.2f cm\n", dist);
-        ssd1306_clear(&disp);
-        snprintf(text, sizeof(text), "%.2f cm", dist);
-        ssd1306_draw_string(&disp, 8, 24, 2, text);
-        ssd1306_show(&disp);
+        if (morse_len > 0 &&
+            absolute_time_diff_us(last_symbol_time, now) > MESSAGE_TIMEOUT_MS * 1000)
+        {
+            printf("Starting new listening session!\n");
+            morse_buffer[morse_len] = '\0';
+            if (strcmp(morse_buffer, target_sos) == 0)
+            {
+                message_ready = true;
+            }
+            morse_len = 0;
+        }
 
-        sleep_ms(200);
+        if (message_ready)
+        {
+            send_morse_ok();
+            message_ready = false;
+        }
+
+        sleep_ms(50);
     }
 }
