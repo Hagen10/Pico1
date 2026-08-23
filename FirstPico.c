@@ -11,18 +11,57 @@
 
 const uint32_t EDGE_DEBOUNCE_US = 30000;       // 30 ms
 const uint32_t DOT_DASH_THRESHOLD_US = 250000; // 250 ms
-#define MESSAGE_TIMEOUT_MS 1400
+const uint32_t LETTER_GAP_US = 1200000;
+const uint32_t WORD_GAP_US = 2600000;
+#define MESSAGE_TIMEOUT_MS 3500
 
-const char target_sos[] = "...---...";
+#define MORSE_LETTER_SEPARATOR ' '
+#define MORSE_WORD_SEPARATOR '/'
 
 volatile absolute_time_t last_edge_time = {0};
 volatile absolute_time_t press_start_time = {0};
 volatile absolute_time_t last_symbol_time = {0};
 volatile bool waiting_for_release = false;
 volatile bool message_ready = false;
+volatile bool question_cancelled = false;
 
 char morse_buffer[32];
 volatile int morse_len = 0;
+
+typedef struct
+{
+    const char *text;
+    const char *morse;
+} MorseLetter;
+
+typedef struct
+{
+    const char *question;
+    const char *answer;
+} MorseQuestion;
+
+// Questions can be changed here. Answers are written as Morse symbols.
+const MorseQuestion questions[] = {
+    {"Hvad er 2 plus 2", "....-"},
+    {"Hvilken farve har græs", "--. .-. --- -."},
+    {"Hvilken farve er en brandbil", ".-. --- -.."},
+};
+
+const MorseLetter morse_alphabet[] = {
+    {"a", ".-"}, {"b", "-..."}, {"c", "-.-."}, {"d", "-.."},
+    {"e", "."}, {"f", "..-."}, {"g", "--."}, {"h", "...."},
+    {"i", ".."}, {"j", ".---"}, {"k", "-.-"}, {"l", ".-.."},
+    {"m", "--"}, {"n", "-."}, {"o", "---"}, {"p", ".--."},
+    {"q", "--.-"}, {"r", ".-."}, {"s", "..."}, {"t", "-"},
+    {"u", "..-"}, {"v", "...-"}, {"w", ".--"}, {"x", "-..-"},
+    {"y", "-.--"}, {"z", "--.."}, {"æ", ".-.-"}, {"ø", "---."},
+    {"å", ".--.-"}, {"0", "-----"}, {"1", ".----"}, {"2", "..---"},
+    {"3", "...--"}, {"4", "....-"}, {"5", "....."}, {"6", "-...."},
+    {"7", "--..."}, {"8", "---.."}, {"9", "----."},
+};
+
+const size_t question_count = sizeof(questions) / sizeof(questions[0]);
+int current_question = 0;
 
 void switch_pressed(uint gpio, uint32_t event_mask)
 {
@@ -31,12 +70,20 @@ void switch_pressed(uint gpio, uint32_t event_mask)
 
     absolute_time_t now = get_absolute_time();
     uint64_t dt = absolute_time_diff_us(last_edge_time, now);
+
+    // Always clear the indicator as soon as a release edge is seen, even if
+    // that edge is discarded by debounce filtering.
+    if (event_mask & GPIO_IRQ_EDGE_RISE)
+        pwm_set_gpio_level(RED_LED, 0);
+
     if (dt < EDGE_DEBOUNCE_US)
         return;
     last_edge_time = now;
 
     if (event_mask & GPIO_IRQ_EDGE_FALL)
     {
+        question_cancelled = true;
+        pwm_set_gpio_level(GREEN_LED, 0);
         press_start_time = now;
         pwm_set_gpio_level(RED_LED, 65000);
         waiting_for_release = true;
@@ -49,11 +96,14 @@ void switch_pressed(uint gpio, uint32_t event_mask)
 
         if (morse_len < (int)sizeof(morse_buffer) - 1)
         {
-            pwm_set_gpio_level(RED_LED, 0);
             morse_buffer[morse_len++] = press_us < DOT_DASH_THRESHOLD_US ? '.' : '-';
             morse_buffer[morse_len] = '\0';
             printf("MORSE: %s\n", morse_buffer);
             last_symbol_time = now;
+        }
+        else
+        {
+            pwm_set_gpio_level(RED_LED, 0);
         }
         waiting_for_release = false;
     }
@@ -62,28 +112,113 @@ void switch_pressed(uint gpio, uint32_t event_mask)
 void blink_symbol(bool dash)
 {
     pwm_set_gpio_level(GREEN_LED, 65000);
-    sleep_ms(dash ? 800 : 100);
+    for (uint32_t elapsed_ms = 0; elapsed_ms < (dash ? 1200 : 300); elapsed_ms += 20)
+    {
+        if (question_cancelled)
+        {
+            pwm_set_gpio_level(GREEN_LED, 0);
+            return;
+        }
+        sleep_ms(20);
+    }
     pwm_set_gpio_level(GREEN_LED, 0);
-    sleep_ms(200);
+    for (uint32_t elapsed_ms = 0; elapsed_ms < 500; elapsed_ms += 20)
+    {
+        if (question_cancelled)
+            return;
+        sleep_ms(20);
+    }
 }
 
-void send_morse_ok(void)
+const char *find_morse(const char *letter)
 {
-    printf("Printing answer!\n");
-    const char *ok = "--- -.-";
-    for (const char *p = ok; *p; ++p)
+    char normalized_letter[4] = {0};
+    strncpy(normalized_letter, letter, sizeof(normalized_letter) - 1);
+    if (normalized_letter[0] >= 'A' && normalized_letter[0] <= 'Z')
+        normalized_letter[0] += 'a' - 'A';
+
+    for (size_t i = 0; i < sizeof(morse_alphabet) / sizeof(morse_alphabet[0]); ++i)
     {
-        if (*p == '.')
-            blink_symbol(false);
-        else if (*p == '-')
-            blink_symbol(true);
-        else
-            sleep_ms(200);
+        if (strcmp(normalized_letter, morse_alphabet[i].text) == 0)
+            return morse_alphabet[i].morse;
     }
+    return NULL;
+}
+
+void send_morse_text(const char *text)
+{
+    for (size_t i = 0; text[i] != '\0';)
+    {
+        if (text[i] == ' ')
+        {
+            for (uint32_t elapsed_ms = 0; elapsed_ms < 2500; elapsed_ms += 20)
+            {
+                if (question_cancelled)
+                    return;
+                sleep_ms(20);
+            }
+            ++i;
+            continue;
+        }
+
+        const char *letter = NULL;
+        unsigned char byte = (unsigned char)text[i];
+        size_t letter_length = 1;
+        if ((byte & 0xe0) == 0xc0)
+            letter_length = 2;
+        else if ((byte & 0xf0) == 0xe0)
+            letter_length = 3;
+        char letter_buffer[4] = {0};
+        memcpy(letter_buffer, &text[i], letter_length);
+        letter = find_morse(letter_buffer);
+
+        if (letter != NULL)
+        {
+            for (const char *symbol = letter; *symbol; ++symbol)
+                blink_symbol(*symbol == '-');
+        }
+        for (uint32_t elapsed_ms = 0; elapsed_ms < 1200; elapsed_ms += 20)
+        {
+            if (question_cancelled)
+                return;
+            sleep_ms(20);
+        }
+        i += letter_length;
+    }
+}
+
+void ask_current_question(void)
+{
+    question_cancelled = false;
+    printf("Question %d: %s\n", current_question + 1, questions[current_question].question);
+    send_morse_text(questions[current_question].question);
+}
+
+void flash_result(uint pin, bool pwm)
+{
+    if (!pwm)
+        gpio_put(pin, true);
+
+    for (uint32_t elapsed_ms = 0; elapsed_ms < 3000; elapsed_ms += 250)
+    {
+        if (pwm)
+            pwm_set_gpio_level(pin, (elapsed_ms / 250) % 2 == 0 ? 65000 : 0);
+        else
+            gpio_put(pin, (elapsed_ms / 250) % 2 == 0);
+        sleep_ms(250);
+    }
+
+    if (pwm)
+        pwm_set_gpio_level(pin, 0);
+    else
+        gpio_put(pin, false);
 }
 
 int main()
 {
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
     gpio_init(GREEN_LED);
     gpio_set_function(GREEN_LED, GPIO_FUNC_PWM);
 
@@ -104,26 +239,71 @@ int main()
 
     // Needed for getting logs from `printf` via USB
     stdio_init_all();
+    ask_current_question();
 
     while (true)
     {
         absolute_time_t now = get_absolute_time();
 
+        if (gpio_get(SWITCH))
+            pwm_set_gpio_level(RED_LED, 0);
+
+        if (morse_len > 0 &&
+            absolute_time_diff_us(last_symbol_time, now) <= MESSAGE_TIMEOUT_MS * 1000)
+        {
+            uint64_t symbol_gap_us = absolute_time_diff_us(last_symbol_time, now);
+            if (symbol_gap_us > WORD_GAP_US &&
+                morse_buffer[morse_len - 1] != MORSE_WORD_SEPARATOR &&
+                morse_len < (int)sizeof(morse_buffer) - 1)
+            {
+                morse_buffer[morse_len++] = MORSE_WORD_SEPARATOR;
+                morse_buffer[morse_len] = '\0';
+            }
+            else if (symbol_gap_us > LETTER_GAP_US &&
+                     morse_buffer[morse_len - 1] != MORSE_LETTER_SEPARATOR &&
+                     morse_buffer[morse_len - 1] != MORSE_WORD_SEPARATOR &&
+                     morse_len < (int)sizeof(morse_buffer) - 1)
+            {
+                morse_buffer[morse_len++] = MORSE_LETTER_SEPARATOR;
+                morse_buffer[morse_len] = '\0';
+            }
+        }
+
         if (morse_len > 0 &&
             absolute_time_diff_us(last_symbol_time, now) > MESSAGE_TIMEOUT_MS * 1000)
         {
-            printf("Starting new listening session!\n");
-            morse_buffer[morse_len] = '\0';
-            if (strcmp(morse_buffer, target_sos) == 0)
+            while (morse_len > 0 &&
+                   (morse_buffer[morse_len - 1] == MORSE_LETTER_SEPARATOR ||
+                    morse_buffer[morse_len - 1] == MORSE_WORD_SEPARATOR))
             {
+                --morse_len;
+            }
+            morse_buffer[morse_len] = '\0';
+            printf("Answer received: %s\n", morse_buffer);
+            if (strcmp(morse_buffer, questions[current_question].answer) == 0)
+            {
+                printf("Correct answer!\n");
+                flash_result(PICO_DEFAULT_LED_PIN, false);
+                ++current_question;
+                if (current_question == (int)question_count)
+                {
+                    printf("All questions answered.\n");
+                    current_question = 0;
+                }
                 message_ready = true;
+            }
+            else
+            {
+                printf("Incorrect answer. Repeating question.\n");
+                message_ready = true;
+                flash_result(RED_LED, true);
             }
             morse_len = 0;
         }
 
         if (message_ready)
         {
-            send_morse_ok();
+            ask_current_question();
             message_ready = false;
         }
 
