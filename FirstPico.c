@@ -5,18 +5,22 @@
 #include "hardware/pwm.h"
 #include <string.h>
 
-#define GREEN_LED 16
+#define YELLOW_LED 16
 #define SWITCH 5
 #define RED_LED 15
 
 const uint32_t EDGE_DEBOUNCE_US = 30000;       // 30 ms
 const uint32_t DOT_DASH_THRESHOLD_US = 250000; // 250 ms
-const uint32_t LETTER_GAP_US = 1200000;
-const uint32_t WORD_GAP_US = 2600000;
-#define MESSAGE_TIMEOUT_MS 3500
+const uint32_t LETTER_GAP_US = 2000000;
+#define MESSAGE_TIMEOUT_MS 5000
+#define MORSE_WORD_SPACE_MS 4000
+#define MORSE_LETTER_SPACE_MS 1500
+#define MORSE_LETTER_SPACE_FLASH_MS 500
+#define MORSE_DASH_MS 1500
+#define MORSE_DOT_MS 300
+#define MORSE_BREAK_MS 750
 
 #define MORSE_LETTER_SEPARATOR ' '
-#define MORSE_WORD_SEPARATOR '/'
 
 volatile absolute_time_t last_edge_time = {0};
 volatile absolute_time_t press_start_time = {0};
@@ -42,22 +46,52 @@ typedef struct
 
 // Questions can be changed here. Answers are written as Morse symbols.
 const MorseQuestion questions[] = {
-    {"Hvad er 2 plus 2", "....-"},
-    {"Hvilken farve har græs", "--. .-. --- -."},
-    {"Hvilken farve er en brandbil", ".-. --- -.."},
+    {"Hvem kan bænkpresse 160 kg?", "-- .. -.- -.- . .-.."},
+    {"Hvem har boet 4 år i USA?", ".-.. .- .-. ..."},
+    {"Hvem er bange for elge?", "-... . .- - .-. .. -.-. ."},
 };
 
 const MorseLetter morse_alphabet[] = {
-    {"a", ".-"}, {"b", "-..."}, {"c", "-.-."}, {"d", "-.."},
-    {"e", "."}, {"f", "..-."}, {"g", "--."}, {"h", "...."},
-    {"i", ".."}, {"j", ".---"}, {"k", "-.-"}, {"l", ".-.."},
-    {"m", "--"}, {"n", "-."}, {"o", "---"}, {"p", ".--."},
-    {"q", "--.-"}, {"r", ".-."}, {"s", "..."}, {"t", "-"},
-    {"u", "..-"}, {"v", "...-"}, {"w", ".--"}, {"x", "-..-"},
-    {"y", "-.--"}, {"z", "--.."}, {"æ", ".-.-"}, {"ø", "---."},
-    {"å", ".--.-"}, {"0", "-----"}, {"1", ".----"}, {"2", "..---"},
-    {"3", "...--"}, {"4", "....-"}, {"5", "....."}, {"6", "-...."},
-    {"7", "--..."}, {"8", "---.."}, {"9", "----."},
+    {"a", ".-"}, 
+    {"b", "-..."}, 
+    {"c", "-.-."}, 
+    {"d", "-.."},
+    {"e", "."}, 
+    {"f", "..-."}, 
+    {"g", "--."}, 
+    {"h", "...."},
+    {"i", ".."}, 
+    {"j", ".---"}, 
+    {"k", "-.-"}, 
+    {"l", ".-.."},
+    {"m", "--"}, 
+    {"n", "-."}, 
+    {"o", "---"}, 
+    {"p", ".--."},
+    {"q", "--.-"}, 
+    {"r", ".-."}, 
+    {"s", "..."}, 
+    {"t", "-"},
+    {"u", "..-"}, 
+    {"v", "...-"}, 
+    {"w", ".--"}, 
+    {"x", "-..-"},
+    {"y", "-.--"}, 
+    {"z", "--.."}, 
+    {"æ", ".-.-"}, 
+    {"ø", "---."},
+    {"å", ".--.-"}, 
+    {"0", "-----"}, 
+    {"1", ".----"}, 
+    {"2", "..---"},
+    {"3", "...--"}, 
+    {"4", "....-"}, 
+    {"5", "....."}, 
+    {"6", "-...."},
+    {"7", "--..."}, 
+    {"8", "---.."}, 
+    {"9", "----."}, 
+    {"?", "..--.."},
 };
 
 const size_t question_count = sizeof(questions) / sizeof(questions[0]);
@@ -83,7 +117,7 @@ void switch_pressed(uint gpio, uint32_t event_mask)
     if (event_mask & GPIO_IRQ_EDGE_FALL)
     {
         question_cancelled = true;
-        pwm_set_gpio_level(GREEN_LED, 0);
+        pwm_set_gpio_level(YELLOW_LED, 0);
         press_start_time = now;
         pwm_set_gpio_level(RED_LED, 65000);
         waiting_for_release = true;
@@ -111,18 +145,18 @@ void switch_pressed(uint gpio, uint32_t event_mask)
 
 void blink_symbol(bool dash)
 {
-    pwm_set_gpio_level(GREEN_LED, 65000);
-    for (uint32_t elapsed_ms = 0; elapsed_ms < (dash ? 1200 : 300); elapsed_ms += 20)
+    pwm_set_gpio_level(YELLOW_LED, 65000);
+    for (uint32_t elapsed_ms = 0; elapsed_ms < (dash ? MORSE_DASH_MS : MORSE_DOT_MS); elapsed_ms += 20)
     {
         if (question_cancelled)
         {
-            pwm_set_gpio_level(GREEN_LED, 0);
+            pwm_set_gpio_level(YELLOW_LED, 0);
             return;
         }
         sleep_ms(20);
     }
-    pwm_set_gpio_level(GREEN_LED, 0);
-    for (uint32_t elapsed_ms = 0; elapsed_ms < 500; elapsed_ms += 20)
+    pwm_set_gpio_level(YELLOW_LED, 0);
+    for (uint32_t elapsed_ms = 0; elapsed_ms < MORSE_BREAK_MS; elapsed_ms += 20)
     {
         if (question_cancelled)
             return;
@@ -151,12 +185,12 @@ void send_morse_text(const char *text)
     {
         if (text[i] == ' ')
         {
-            for (uint32_t elapsed_ms = 0; elapsed_ms < 2500; elapsed_ms += 20)
-            {
-                if (question_cancelled)
-                    return;
-                sleep_ms(20);
-            }
+            // for (uint32_t elapsed_ms = 0; elapsed_ms < MORSE_WORD_SPACE_MS; elapsed_ms += 20)
+            // {
+            //     if (question_cancelled)
+            //         return;
+            //     sleep_ms(20);
+            // }
             ++i;
             continue;
         }
@@ -177,12 +211,24 @@ void send_morse_text(const char *text)
             for (const char *symbol = letter; *symbol; ++symbol)
                 blink_symbol(*symbol == '-');
         }
-        for (uint32_t elapsed_ms = 0; elapsed_ms < 1200; elapsed_ms += 20)
+
+        pwm_set_gpio_level(RED_LED, 65000);
+        for (uint32_t elapsed_ms = 0; elapsed_ms < MORSE_LETTER_SPACE_FLASH_MS; elapsed_ms += 20)
         {
             if (question_cancelled)
                 return;
             sleep_ms(20);
         }
+
+        pwm_set_gpio_level(RED_LED, 0);
+
+        for (uint32_t elapsed_ms = 0; elapsed_ms < MORSE_LETTER_SPACE_MS; elapsed_ms += 20)
+        {
+            if (question_cancelled)
+                return;
+            sleep_ms(20);
+        }
+
         i += letter_length;
     }
 }
@@ -190,7 +236,7 @@ void send_morse_text(const char *text)
 void ask_current_question(void)
 {
     question_cancelled = false;
-    printf("Question %d: %s\n", current_question + 1, questions[current_question].question);
+    printf("Question %d\n", current_question + 1);
     send_morse_text(questions[current_question].question);
 }
 
@@ -219,14 +265,14 @@ int main()
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    gpio_init(GREEN_LED);
-    gpio_set_function(GREEN_LED, GPIO_FUNC_PWM);
+    gpio_init(YELLOW_LED);
+    gpio_set_function(YELLOW_LED, GPIO_FUNC_PWM);
 
     gpio_init(RED_LED);
     gpio_set_function(RED_LED, GPIO_FUNC_PWM);
 
     // Additional PWM CONFIGURATION
-    uint slice_num = pwm_gpio_to_slice_num(GREEN_LED);
+    uint slice_num = pwm_gpio_to_slice_num(YELLOW_LED);
     pwm_set_enabled(slice_num, true);
 
     uint slice2_num = pwm_gpio_to_slice_num(RED_LED);
@@ -252,16 +298,9 @@ int main()
             absolute_time_diff_us(last_symbol_time, now) <= MESSAGE_TIMEOUT_MS * 1000)
         {
             uint64_t symbol_gap_us = absolute_time_diff_us(last_symbol_time, now);
-            if (symbol_gap_us > WORD_GAP_US &&
-                morse_buffer[morse_len - 1] != MORSE_WORD_SEPARATOR &&
-                morse_len < (int)sizeof(morse_buffer) - 1)
-            {
-                morse_buffer[morse_len++] = MORSE_WORD_SEPARATOR;
-                morse_buffer[morse_len] = '\0';
-            }
-            else if (symbol_gap_us > LETTER_GAP_US &&
+
+            if (symbol_gap_us > LETTER_GAP_US &&
                      morse_buffer[morse_len - 1] != MORSE_LETTER_SEPARATOR &&
-                     morse_buffer[morse_len - 1] != MORSE_WORD_SEPARATOR &&
                      morse_len < (int)sizeof(morse_buffer) - 1)
             {
                 morse_buffer[morse_len++] = MORSE_LETTER_SEPARATOR;
@@ -273,8 +312,7 @@ int main()
             absolute_time_diff_us(last_symbol_time, now) > MESSAGE_TIMEOUT_MS * 1000)
         {
             while (morse_len > 0 &&
-                   (morse_buffer[morse_len - 1] == MORSE_LETTER_SEPARATOR ||
-                    morse_buffer[morse_len - 1] == MORSE_WORD_SEPARATOR))
+                   morse_buffer[morse_len - 1] == MORSE_LETTER_SEPARATOR)
             {
                 --morse_len;
             }
@@ -288,7 +326,9 @@ int main()
                 if (current_question == (int)question_count)
                 {
                     printf("All questions answered.\n");
+                    gpio_put(PICO_DEFAULT_LED_PIN, true);
                     current_question = 0;
+                    break;
                 }
                 message_ready = true;
             }
