@@ -10,7 +10,7 @@
 #define RED_LED 15
 
 const uint32_t EDGE_DEBOUNCE_US = 30000;       // 30 ms
-const uint32_t DOT_DASH_THRESHOLD_US = 250000; // 250 ms
+const uint32_t DOT_DASH_THRESHOLD_US = 500000; // 500 ms
 const uint32_t LETTER_GAP_US = 2000000;
 #define MESSAGE_TIMEOUT_MS 5000
 #define MORSE_WORD_SPACE_MS 4000
@@ -28,6 +28,7 @@ volatile absolute_time_t last_symbol_time = {0};
 volatile bool waiting_for_release = false;
 volatile bool message_ready = false;
 volatile bool question_cancelled = false;
+volatile bool letter_gap_indicated = false;
 
 char morse_buffer[32];
 volatile int morse_len = 0;
@@ -46,7 +47,7 @@ typedef struct
 
 // Questions can be changed here. Answers are written as Morse symbols.
 const MorseQuestion questions[] = {
-    {"Hvem kan bænkpresse 160 kg?", "-- .. -.- -.- . .-.."},
+    {"Hvem elsker at fluefiske?", ".--. .- .-.. .-.. ."},
     {"Hvem har boet 4 år i USA?", ".-.. .- .-. ..."},
     {"Hvem er bange for elge?", "-... . .- - .-. .. -.-. ."},
 };
@@ -134,6 +135,7 @@ void switch_pressed(uint gpio, uint32_t event_mask)
             morse_buffer[morse_len] = '\0';
             printf("MORSE: %s\n", morse_buffer);
             last_symbol_time = now;
+            letter_gap_indicated = false;  // Reset indicator for new letter
         }
         else
         {
@@ -299,6 +301,18 @@ int main()
         {
             uint64_t symbol_gap_us = absolute_time_diff_us(last_symbol_time, now);
 
+            // Flash yellow LED when letter gap threshold is reached
+            if (symbol_gap_us > LETTER_GAP_US && !letter_gap_indicated)
+            {
+                pwm_set_gpio_level(YELLOW_LED, 65000);
+                letter_gap_indicated = true;
+            }
+            else if (symbol_gap_us <= LETTER_GAP_US)
+            {
+                pwm_set_gpio_level(YELLOW_LED, 0);
+                letter_gap_indicated = false;
+            }
+
             if (symbol_gap_us > LETTER_GAP_US &&
                      morse_buffer[morse_len - 1] != MORSE_LETTER_SEPARATOR &&
                      morse_len < (int)sizeof(morse_buffer) - 1)
@@ -311,6 +325,9 @@ int main()
         if (morse_len > 0 &&
             absolute_time_diff_us(last_symbol_time, now) > MESSAGE_TIMEOUT_MS * 1000)
         {
+            pwm_set_gpio_level(YELLOW_LED, 0);
+            letter_gap_indicated = false;
+            
             while (morse_len > 0 &&
                    morse_buffer[morse_len - 1] == MORSE_LETTER_SEPARATOR)
             {
