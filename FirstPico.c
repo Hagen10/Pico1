@@ -107,24 +107,11 @@ void switch_pressed(uint gpio, uint32_t event_mask)
     absolute_time_t now = get_absolute_time();
     uint64_t dt = absolute_time_diff_us(last_edge_time, now);
 
-    if (dt < EDGE_DEBOUNCE_US)
-        return;
-    last_edge_time = now;
-
-    // Read the settled pin level so a callback containing both edge flags
-    // cannot accidentally discard the press or release.
-    if (!gpio_get(SWITCH) && (event_mask & GPIO_IRQ_EDGE_FALL))
-    {
-        question_cancelled = true;
-        pwm_set_gpio_level(YELLOW_LED, 0);
-        press_start_time = now;
-        pwm_set_gpio_level(RED_LED, 65000);
-        waiting_for_release = true;
-        return;
-    }
-
+    // Always handle a release so the indicator cannot remain on. This also
+    // allows short valid symbols whose release occurs during the debounce interval.
     if (gpio_get(SWITCH) && (event_mask & GPIO_IRQ_EDGE_RISE))
     {
+        last_edge_time = now;
         pwm_set_gpio_level(RED_LED, 0);
 
         if (waiting_for_release)
@@ -142,6 +129,21 @@ void switch_pressed(uint gpio, uint32_t event_mask)
 
             waiting_for_release = false;
         }
+        return;
+    }
+
+    if (dt < EDGE_DEBOUNCE_US || !(event_mask & GPIO_IRQ_EDGE_FALL))
+        return;
+
+    last_edge_time = now;
+
+    if (!gpio_get(SWITCH))
+    {
+        question_cancelled = true;
+        pwm_set_gpio_level(YELLOW_LED, 0);
+        press_start_time = now;
+        pwm_set_gpio_level(RED_LED, 65000);
+        waiting_for_release = true;
     }
 }
 
