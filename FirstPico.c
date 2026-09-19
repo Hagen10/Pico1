@@ -49,7 +49,7 @@ typedef struct
 const MorseQuestion questions[] = {
     {"Hvem elsker at fluefiske?", ".--. .- .-.. .-.. ."},
     {"Hvem har boet 4 år i USA?", ".-.. .- .-. ..."},
-    {"Hvem er bange for elge?", "-... . .- - .-. .. -.-. ."},
+    {"Hvem er barn nr 7 i familien?", ".-. --- . .-.."},
 };
 
 const MorseLetter morse_alphabet[] = {
@@ -109,7 +109,27 @@ void switch_pressed(uint gpio, uint32_t event_mask)
     // Always clear the indicator as soon as a release edge is seen, even if
     // that edge is discarded by debounce filtering.
     if (event_mask & GPIO_IRQ_EDGE_RISE)
+    {
         pwm_set_gpio_level(RED_LED, 0);
+        last_edge_time = now;
+
+        if (waiting_for_release)
+        {
+            uint64_t press_us = absolute_time_diff_us(press_start_time, now);
+
+            if (morse_len < (int)sizeof(morse_buffer) - 1)
+            {
+                morse_buffer[morse_len++] = press_us < DOT_DASH_THRESHOLD_US ? '.' : '-';
+                morse_buffer[morse_len] = '\0';
+                printf("MORSE: %s\n", morse_buffer);
+                last_symbol_time = now;
+                letter_gap_indicated = false;
+            }
+
+            waiting_for_release = false;
+        }
+        return;
+    }
 
     if (dt < EDGE_DEBOUNCE_US)
         return;
@@ -125,24 +145,6 @@ void switch_pressed(uint gpio, uint32_t event_mask)
         return;
     }
 
-    if ((event_mask & GPIO_IRQ_EDGE_RISE) && waiting_for_release)
-    {
-        uint64_t press_us = absolute_time_diff_us(press_start_time, now);
-
-        if (morse_len < (int)sizeof(morse_buffer) - 1)
-        {
-            morse_buffer[morse_len++] = press_us < DOT_DASH_THRESHOLD_US ? '.' : '-';
-            morse_buffer[morse_len] = '\0';
-            printf("MORSE: %s\n", morse_buffer);
-            last_symbol_time = now;
-            letter_gap_indicated = false;  // Reset indicator for new letter
-        }
-        else
-        {
-            pwm_set_gpio_level(RED_LED, 0);
-        }
-        waiting_for_release = false;
-    }
 }
 
 void blink_symbol(bool dash)
