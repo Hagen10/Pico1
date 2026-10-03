@@ -48,9 +48,9 @@ typedef struct
 
 // Questions can be changed here. Answers are written as Morse symbols.
 const MorseQuestion questions[] = {
-    {"Hvem elsker at fluefiske?", ".--. .- .-.. .-.. ."},
-    {"Hvem har boet 4 år i USA?", ".-.. .- .-. ..."},
-    {"Hvem er barn nr 7 i familien?", ".-. --- . .-.."},
+    {"Hvordan morser man SOS?", "... --- ..."},
+    {"Hvordan morser man SOS?", "... --- ..."},
+    {"Hvordan morser man SOS?", "... --- ..."}
 };
 
 const MorseLetter morse_alphabet[] = {
